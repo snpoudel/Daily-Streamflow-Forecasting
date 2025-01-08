@@ -238,10 +238,10 @@ def hbv(pars, p, temp, date, latitude, routing):
         qbase = inflow_base   #unrouted base flow
         qtotal  = qdirect + qbase    #total flow 
     
-    #make array of initial storage
-    initial_storage = np.array([state_upres, state_lowres, state_snow, state_sliq, state_sma])
-    #make array of simulated variables
-    simulated_variables = np.array([sim_snow, sim_swe, sim_melt, pr_eff, sim_et, sim_pexc, sim_sma, inflow_direct, inflow_base])
+    #make array of storage at last time step
+    storage_last = np.array([state_upres, state_lowres, state_snow, state_sliq, state_sma])
+    #make array of simulated variables at last time step
+    simulated_variables_last = np.array([sim_snow[-1], sim_swe[-1], sim_melt[-1], pr_eff[-1], sim_et[-1], sim_pexc[-1], sim_sma[-1], inflow_direct[-1], inflow_base[-1]]) 
     #return total flow as output
-    return qtotal, initial_storage, simulated_variables
+    return qtotal, storage_last, simulated_variables_last
 #End of function
