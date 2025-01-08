@@ -2,9 +2,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 from hbv_model import hbv #imported from local python script
-from hbv_forecast_model import hbv_forecast #imported from local python script
 from geneticalgorithm import geneticalgorithm as ga # install package first
 
 ################################################################################################################################################################################################################################
@@ -55,7 +54,7 @@ varbound = np.array([[1,1000], #fc #lower and upper bounds of the parameters
 algorithm_param = {
     'max_num_iteration': 50,              # Generations, higher is better, but requires more computational time
     'max_iteration_without_improv': None,   # Stopping criterion for lack of improvement
-    'population_size': 200,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
+    'population_size': 100,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
     'parents_portion': 0.3,                 # Portion of new generation population filled by previous population
     'elit_ratio': 0.01,                     # Portion of the best individuals preserved unchanged
     'crossover_probability': 0.3,           # Chance of existing solution passing its characteristics to new trial solution
@@ -90,46 +89,61 @@ df_nse["station_id"] = str(station_id)
 # df_param.to_csv(f"output/param_{station_id}.csv", index = False)
 # df_nse.to_csv(f"output/nse_{station_id}.csv", index = False)
 
+#run the model with the best parameters for the calibration data
+q_sim_cal, storage_cal, sim_vars_cal = hbv(param_value, p, temp, date, latitude, routing)
+
 #evaluate model performance using the best parameters for test data
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
-test = df[df["year"] >= 2009]
+test = df[df["year"] >= 2009].reset_index(drop=True)
+test['date'] = pd.to_datetime(test['date'])
 q_obs = test["qobs"]
-q_sim, _, _ = hbv(param_value, test["precip"], test["tavg"], test["date"], test["latitude"], routing)
+q_sim_test, _, _ = hbv(param_value, test["precip"], test["tavg"], test["date"], test["latitude"], routing)
 #calculate rmse, nse
-rmse = mean_squared_error(q_obs, q_sim) ** 0.5
-nse = 1 - (np.sum((q_obs - np.mean(q_obs))**2) / np.sum((q_obs - q_sim)**2))
-print(f"Test RMSE: {rmse} and NSE: {nse}")
+rmse = mean_squared_error(q_obs, q_sim_test) ** 0.5
+denominator = np.sum((q_obs - (np.mean(q_obs)))**2)
+numerator = np.sum((q_obs - q_sim_test)**2)
+nse_value = 1 - (numerator/denominator)
+print(f"Test RMSE: {rmse:.2f} and NSE: {nse_value:.2f}")
 
+#plot observed vs simulated streamflow
+plt.figure(figsize=(6, 4))
+plt.plot(test["date"], q_obs, label='Observed')
+plt.plot(test["date"], q_sim_test, label='Simulated')
+plt.title("Observed vs Simulated Streamflow")
+plt.show()
 
+plt.figure(figsize=(6, 4))
+plt.plot( q_obs[0:500], label='Observed')
+plt.plot( q_sim_test[0:500], label='Simulated')
+plt.title("Observed vs Simulated Streamflow")
+plt.show()
 
 ################################################################################################################################################################################################################################
 ##--FORECAST--##
-df = pd.read_csv(f"data/hbv_input_{'01094400'}.csv")
+df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
+df['date'] = pd.to_datetime(df['date'])  # Convert 'date' column to datetime
 #use data after 2009 for forecasting
 test = df[df["year"] >= 2006]
 
 forecast_df = pd.DataFrame(columns=['Date', 'Observed', 'Forecast'])
 for test_year in range(2009, 2016):
     test_df = test[test['year'] == test_year]
-    for month in range(1, 12):
-        test_monthly = test_df[test_df['month'] == month].reset_index(drop=True)
-        test_monthly_next = test_df[test_df['month'] == month+1].reset_index(drop=True)
-        calibrated_params = best_parameters["variable"]
-        # #re-run the model with the calibrated parameters for each month and get storage and sim_vars for last step
-        q_sim, storage, sim_vars = hbv(calibrated_params, test_monthly["precip"], test_monthly["tavg"], test_monthly["date"], test_monthly["latitude"], routing)
-        #forecast for 28 days
-        last_storage = storage #last storage value
-        last_sim_vars = sim_vars #last sim_vars value
-        for day in range(1, 29):
-            test_day = test_monthly[test_monthly['day'] == day]
-            test_day_next = test_monthly_next[test_monthly_next['day'] == day]
-            forecast_streamflow, forecast_storage, forecast_sim_vars = hbv_forecast(calibrated_params, last_storage, last_sim_vars, [test_day["precip"].values[0]], test_day["tavg"].values[0], test_day['date'] ,test_day["latitude"].values[0], routing)
-            forecast_df = pd.concat([forecast_df, pd.DataFrame({'Date': test_day_next['date'], 'Observed': test_day_next['qobs'], 'Forecast': forecast_streamflow})])
-            #update the last values
-            last_storage = forecast_storage
-            last_sim_vars = forecast_sim_vars
+    for month in range(1, 13):
+        #get model states by running model for the last 365 days before the forecast period starts
+        forecast_start_date = pd.Timestamp(f"{test_year}-{month}-01")
+        forecast_end_date = forecast_start_date + pd.DateOffset(days=28)
+        model_train_start_date = forecast_start_date - pd.DateOffset(years=1)
+        df_states = df[(df['date'] >= model_train_start_date) & (df['date'] < forecast_end_date)]
+        df_states = df_states.reset_index(drop=True)
+        #run model
+        q_sim,_ ,_ = hbv(param_value, df_states["precip"], df_states["tavg"], df_states["date"], df_states["latitude"], routing)
+        #extract the last 28 days of the streamflow simulation
+        forecast_streamflow = q_sim[-28:]
+        forecast_date = df_states['date'][-28:]
+        observed_streamflow = df_states['qobs'][-28:]
+        forecast_df = pd.concat([forecast_df, pd.DataFrame({'Date': forecast_date, 'Observed': observed_streamflow, 'Forecast': forecast_streamflow})])
 #save the forecasted values
-
+forecast_df = forecast_df.reset_index(drop=True)
 
 # visualize the actual vs forecasted values from the forecast_df
 forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
@@ -144,6 +158,7 @@ plt.xlabel("Day")
 plt.ylabel("Streamflow")
 plt.ylim(0, None)
 plt.legend()
+plt.grid()
 plt.show()
 
 #find rmse for each day forecast and observed values
@@ -160,4 +175,4 @@ plt.title("RMSE for different forecasting horizons")
 plt.xlabel("Day")
 plt.ylabel("RMSE")
 plt.ylim(0, None)
-plt.show()         
+plt.show()  
