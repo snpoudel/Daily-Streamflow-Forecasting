@@ -176,3 +176,20 @@ plt.xlabel("Day")
 plt.ylabel("RMSE")
 plt.ylim(0, None)
 plt.show()  
+
+#find nse for each day forecast and observed values
+nse_df = pd.DataFrame(columns=['Day', 'NSE'])
+for day in list(range(1,28)):
+    day_df = forecast_df[forecast_df['day'] == day]
+    denominator = np.sum((day_df['Observed'] - (np.mean(day_df['Observed'])))**2)
+    numerator = np.sum((day_df['Observed'] - day_df['Forecast'])**2)
+    nse = 1 - (numerator/denominator)
+    nse_df = pd.concat([nse_df, pd.DataFrame({'Day': [day], 'NSE': [nse]})])
+#plot nse for each day
+plt.figure(figsize=(6, 4))
+plt.plot(nse_df['Day'], nse_df['NSE'])
+plt.title("NSE for different forecasting horizons")
+plt.xlabel("Day")
+plt.ylabel("NSE")
+plt.ylim(0, None)
+plt.show()
