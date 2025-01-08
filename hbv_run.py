@@ -105,18 +105,6 @@ numerator = np.sum((q_obs - q_sim_test)**2)
 nse_value = 1 - (numerator/denominator)
 print(f"Test RMSE: {rmse:.2f} and NSE: {nse_value:.2f}")
 
-#plot observed vs simulated streamflow
-plt.figure(figsize=(6, 4))
-plt.plot(test["date"], q_obs, label='Observed')
-plt.plot(test["date"], q_sim_test, label='Simulated')
-plt.title("Observed vs Simulated Streamflow")
-plt.show()
-
-plt.figure(figsize=(6, 4))
-plt.plot( q_obs[0:500], label='Observed')
-plt.plot( q_sim_test[0:500], label='Simulated')
-plt.title("Observed vs Simulated Streamflow")
-plt.show()
 
 ################################################################################################################################################################################################################################
 ##--FORECAST--##
