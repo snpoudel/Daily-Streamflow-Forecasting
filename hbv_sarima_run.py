@@ -55,9 +55,9 @@ varbound = np.array([[1,1000], #fc #lower and upper bounds of the parameters
                     [1,10]]) #maxbas
 
 algorithm_param = {
-    'max_num_iteration': 50,              # Generations, higher is better, but requires more computational time
+    'max_num_iteration': 5,              # Generations, higher is better, but requires more computational time
     'max_iteration_without_improv': None,   # Stopping criterion for lack of improvement
-    'population_size': 100,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
+    'population_size': 10,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
     'parents_portion': 0.3,                 # Portion of new generation population filled by previous population
     'elit_ratio': 0.01,                     # Portion of the best individuals preserved unchanged
     'crossover_probability': 0.3,           # Chance of existing solution passing its characteristics to new trial solution
@@ -94,32 +94,25 @@ df_nse["station_id"] = str(station_id)
 
 #run the model with the best parameters for the calibration data
 q_sim_cal, storage_cal, sim_vars_cal = hbv(param_value, p, temp, date, latitude, routing)
+#calculate residuals for training data
+residuals_train = pd.DataFrame({'date': date, 'residuals': q_obs - q_sim_cal}).set_index('date')
 
 #evaluate model performance using the best parameters for test data
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
 test = df[df["year"] >= 2009].reset_index(drop=True)
 test['date'] = pd.to_datetime(test['date'])
-q_obs = test["qobs"]
+q_obs_test = test["qobs"]
 q_sim_test, _, _ = hbv(param_value, test["precip"], test["tavg"], test["date"], test["latitude"], routing)
 #calculate rmse, nse
-rmse = mean_squared_error(q_obs, q_sim_test) ** 0.5
-denominator = np.sum((q_obs - (np.mean(q_obs)))**2)
-numerator = np.sum((q_obs - q_sim_test)**2)
+rmse = mean_squared_error(q_obs_test, q_sim_test) ** 0.5
+denominator = np.sum((q_obs_test - (np.mean(q_obs_test)))**2)
+numerator = np.sum((q_obs_test - q_sim_test)**2)
 nse_value = 1 - (numerator/denominator)
 print(f"Test RMSE: {rmse:.2f} and NSE: {nse_value:.2f}")
 
-#plot observed vs simulated streamflow
-plt.figure(figsize=(6, 4))
-plt.plot(test["date"], q_obs, label='Observed')
-plt.plot(test["date"], q_sim_test, label='Simulated')
-plt.title("Observed vs Simulated Streamflow")
-plt.show()
+#calculate residuals for test data
+residuals_test = pd.DataFrame({'date': test['date'], 'residuals': q_obs_test - q_sim_test}).set_index('date')
 
-plt.figure(figsize=(6, 4))
-plt.plot( q_obs[0:500], label='Observed')
-plt.plot( q_sim_test[0:500], label='Simulated')
-plt.title("Observed vs Simulated Streamflow")
-plt.show()
 
 ################################################################################################################################################################################################################################
 ##--FORECAST--##
@@ -194,5 +187,133 @@ plt.plot(nse_df['Day'], nse_df['NSE'])
 plt.title("NSE for different forecasting horizons")
 plt.xlabel("Day")
 plt.ylabel("NSE")
+plt.ylim(0, None)
+plt.show()
+
+
+################################################################################################################################################################################################################################
+#check for autocorrelation in residuals
+# Ljung-Box test for residuals to check for autocorrelation in residuals
+# Null hypothesis: Residuals are white noise (no autocorrelation)
+# If p-value < 0.05, reject null hypothesis, residuals are not white noise
+lb_test_results = acorr_ljungbox(residuals_train, lags=50)
+lb_test_stat = lb_test_results['lb_stat'].values
+lb_p_value = lb_test_results['lb_pvalue'].values
+#make boxplot of lb_p_value, also show points, and threshold line at 0.05
+plt.figure(figsize=(6, 4))
+plt.boxplot(lb_p_value, showfliers=False)
+plt.axhline(y=0.05, color='r', linestyle='--', label="Threshold at 0.05")
+plt.title("Ljung-Box Test P-Values for\nNull Hypothesis of No Autocorrelation")
+plt.ylabel("P-Value")
+plt.xlabel('1-50 day lag')
+plt.legend()
+plt.show()
+
+
+# Fit auto_arima to find the best ARIMA parameters on the training set
+y_train_arima = residuals_train['residuals']
+y_test_arima = residuals_test['residuals']
+
+print("Finding the best ARIMA parameters...")
+arima_model = auto_arima(y_train_arima, # residuals from XGBoost model
+                         exogeneous=None, # exogeneous variables
+                         seasonal=True, # seasonal is true if data has seasonality
+                         m=12, # seasonility of 12 months
+                         approximation=True , # use approximation to speed up the search
+                         stepwise=True, # stepwise is true to speed up the search
+                         suppress_warnings=True, # suppress warnings
+                         error_action="ignore", # ignore orders that don't converge
+                         trace=True) # print results while training
+print(f"Best ARIMA Order: {arima_model.order}")
+print(f"Best Seasonal Order: {arima_model.seasonal_order}")
+best_order = arima_model.order
+best_seasonal_order = arima_model.seasonal_order
+
+# Fit the best ARIMA model on entire the training set
+arima_model = SARIMAX(y_train_arima, order=best_order, seasonal_order=best_seasonal_order, exog=None).fit()
+# Make prediction on entire training set and calculate residuals
+predict_train = arima_model.fittedvalues
+residuals = y_train_arima.values - predict_train
+residuals = residuals.values
+
+# Analyze residuals, plot time series of residuals
+plt.figure(figsize=(6, 4))
+plt.plot(residuals)
+plt.title("Residuals of ARIMA Model")
+plt.xlabel("Time")
+plt.ylabel("Residuals")
+plt.show()
+
+# Ljung-Box test for residuals to check for autocorrelation in residuals
+# Null hypothesis: Residuals are white noise (no autocorrelation)
+# If p-value < 0.05, reject null hypothesis, residuals are not white noise
+lb_test_results = acorr_ljungbox(residuals, lags=50) 
+lb_test_stat = lb_test_results['lb_stat'].values
+lb_p_value = lb_test_results['lb_pvalue'].values
+#make boxplot of lb_p_value, also show points, and threshold line at 0.05
+plt.figure(figsize=(6, 4))
+plt.boxplot(lb_p_value, showfliers=True)
+plt.axhline(y=0.05, color='r', linestyle='--', label="Threshold at 0.05")
+plt.title("Ljung-Box Test P-Values for\nNull Hypothesis of No Autocorrelation")
+plt.ylabel("P-Value")
+plt.xlabel('1-50 day lag')
+plt.legend()
+plt.show()
+
+# Use the best fitted ARIMA model to forecast 28-day streamflow residuals
+resid_forecast_df = pd.DataFrame(columns=['Date', 'Observed', 'Forecast'])
+for test_year in range(2009, 2016):
+    y_test_arima_year = y_test_arima[y_test_arima.index.year == test_year]
+    for month in range(1, 12):  # Loop through all 12 months
+        y_test_arima_monthly = y_test_arima_year[y_test_arima_year.index.month == month]
+        try:
+            # Fit SARIMAX model and forecast for 15 steps
+            results = SARIMAX(y_test_arima_monthly, order=best_order, seasonal_order=best_seasonal_order, exog=None).fit(maxiter=500, disp=False)
+            forecast_monthly = results.forecast(steps=28, exog=None)
+            
+            # Append forecast data to the DataFrame
+            resid_forecast_df = pd.concat([resid_forecast_df, pd.DataFrame({
+                'Date': forecast_monthly.index, 
+                'Observed': y_test_arima_monthly.values[0:28], 
+                'Forecast': forecast_monthly.values
+            })], ignore_index=True)
+        except np.linalg.LinAlgError:
+            print(f"LinAlgError for year {test_year}, month {month}. Skipping this month.")
+resid_forecast_df = resid_forecast_df.reset_index(drop=True)
+
+#Final streamflow forecast is sum of HBV streamflow forecast and ARIMA residuals forecast
+#make merged dataframe on Date
+final_forecast_df = pd.merge(forecast_df, resid_forecast_df, on='Date', suffixes=('_hbv', '_arima'))
+final_forecast_df['Final_Forecast'] = final_forecast_df['Forecast_hbv'] + final_forecast_df['Forecast_arima']
+
+# visualize the actual vs forecasted values from the forecast_df
+final_forecast_df['day'] = final_forecast_df['Date'].dt.day
+#find average of observed and forecasted values for each day
+avg_day = final_forecast_df.groupby('day').mean()
+plt.figure(figsize=(6, 4))
+plt.plot(avg_day['Observed_hbv'], label='Observed')
+plt.plot(avg_day['Final_Forecast'], label='HBV+SARIMA Forecast')
+plt.title("Observed vs Forecasted Streamflow")
+plt.xlabel("Day")
+plt.ylabel("Streamflow")
+plt.ylim(0, None)
+plt.legend()
+plt.grid()
+plt.show()
+
+
+#find rmse for each day forecast and observed values
+final_rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
+for day in list(range(1,28)):
+    day_df = final_forecast_df[final_forecast_df['day'] == day]
+    mse = mean_squared_error(day_df['Observed_hbv'], day_df['Final_Forecast'])
+    rmse = mse ** 0.5
+    final_rmse_df = pd.concat([final_rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
+#plot rmse for each day
+plt.figure(figsize=(6, 4))
+plt.plot(final_rmse_df['Day'], final_rmse_df['RMSE'])
+plt.title("RMSE for different forecasting horizons")
+plt.xlabel("Day")
+plt.ylabel("RMSE")
 plt.ylim(0, None)
 plt.show()
