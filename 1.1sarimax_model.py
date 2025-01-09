@@ -5,6 +5,12 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 import matplotlib.pyplot as plt
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from mpi4py import MPI
+
+#set up MPI communicator
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 #create a start time stamp
 start_time = pd.Timestamp.now()
@@ -12,7 +18,8 @@ start_time = pd.Timestamp.now()
 station_id = pd.read_csv('station_id.csv')
 
 # Load and preprocess the dataset
-id = '01096000'
+# id = '01096000'
+id = station_id['station_id'][rank]
 file_path = f"data/hbv_input_{id}.csv"  # Replace with your file path
 df = pd.read_csv(file_path)
 df.drop(columns=['id', 'latitude', 'date'], inplace=True)

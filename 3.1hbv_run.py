@@ -5,16 +5,23 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, r2_score
 from hbv_model import hbv #imported from local python script
 from geneticalgorithm import geneticalgorithm as ga # install package first
+from mpi4py import MPI
+
+#set up MPI communicator
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 #create a start time stamp
 start_time = pd.Timestamp.now()
 
-################################################################################################################################################################################################################################
-##--CALIBRATE--##
-time_start = pd.Timestamp.now()
 station_id = pd.read_csv('station_id.csv')
-#read input csv file
-station_id = '01096000'
+
+# Load and preprocess the dataset
+# id = '01096000'
+station_id = station_id['station_id'][rank]
+################################################################################################################################################################################################################################
+##--CALIBRATION--##
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
 #only used data upto 2005 for calibration
 df = df[df["year"] < 2009]
