@@ -1,0 +1,13 @@
+Plots Ideas:
+1 Map showing basin area
+1 Methods plots
+3 Model summary performance plots
+4 Model forecast 1 3 5 7 15 28 days plots (first row has all model for 1 day...)
+5 Model forecast 1 2 5 10 20 yrs return period plots (similar plot as above...)
+6 Time taken by different model plot
+7 Result for one single basin
+- time series of observed vs forecast
+- time series of rmse or nse
+
+8 Now show results under future precip uncertainty
+- result showing how model foreast accuracy changes with error in future precip forecast (1mm, 2mm, 3mm, etc...)
