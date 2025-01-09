@@ -5,6 +5,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from xgboost import XGBRegressor
 from sklearn.model_selection import GridSearchCV
 from mpi4py import MPI
+#ignore warnings
+import warnings
+warnings.filterwarnings('ignore')
 
 #set up MPI communicator
 comm = MPI.COMM_WORLD

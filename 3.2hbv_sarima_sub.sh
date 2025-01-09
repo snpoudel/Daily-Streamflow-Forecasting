@@ -3,10 +3,10 @@
 #SBATCH --output=hbv_sarima%j.log       # Output file name (%j expands to jobID)
 #SBATCH --error=hbv_sarima%j.log        # Error file name (%j expands to jobID)
 #SBATCH --time=100:00:00                 # Time limit (HH:MM:SS)
-#SBATCH --nodes=1                       #5 Number of nodes
-#SBATCH --ntasks=1                    #394 Number of tasks (one for each job), if you don't know numner of tasks beforehand there are ways to make this input dynamic as well
-#SBATCH --cpus-per-task=1               # Number of CPU cores per task
-#SBATCH --mem=2G                        # Memory per CPU core (adjust as needed)
+#SBATCH --nodes=4                       #5 Number of nodes
+#SBATCH --ntasks=51                    #394 Number of tasks (one for each job), if you don't know numner of tasks beforehand there are ways to make this input dynamic as well
+#SBATCH --cpus-per-task=6               # Number of CPU cores per task
+#SBATCH --mem=8G                        # Memory per CPU core (adjust as needed)
 #SBATCH --exclusive                     # Exclusive node allocation
 
 # Load necessary modules

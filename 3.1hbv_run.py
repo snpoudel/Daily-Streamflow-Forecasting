@@ -6,6 +6,9 @@ from sklearn.metrics import mean_squared_error, r2_score
 from hbv_model import hbv #imported from local python script
 from geneticalgorithm import geneticalgorithm as ga # install package first
 from mpi4py import MPI
+#ignore warnings
+import warnings
+warnings.filterwarnings('ignore')
 
 #set up MPI communicator
 comm = MPI.COMM_WORLD
@@ -64,7 +67,7 @@ varbound = np.array([[1,1000], #fc #lower and upper bounds of the parameters
 algorithm_param = {
     'max_num_iteration': 100,              # Generations, higher is better, but requires more computational time
     'max_iteration_without_improv': None,   # Stopping criterion for lack of improvement
-    'population_size': 1000,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
+    'population_size': 500,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
     'parents_portion': 0.3,                 # Portion of new generation population filled by previous population
     'elit_ratio': 0.01,                     # Portion of the best individuals preserved unchanged
     'crossover_probability': 0.3,           # Chance of existing solution passing its characteristics to new trial solution
@@ -121,7 +124,7 @@ print(f"Test RMSE: {rmse:.2f} and NSE: {nse_value:.2f}")
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
 df['date'] = pd.to_datetime(df['date'])  # Convert 'date' column to datetime
 #use data after 2009 for forecasting
-test = df[df["year"] >= 2006]
+test = df[df["year"] >= 2009]
 
 forecast_df = pd.DataFrame(columns=['Date', 'Observed', 'Forecast'])
 for test_year in range(2009, 2016):
