@@ -18,7 +18,7 @@ size = comm.Get_size()
 #create a start time stamp
 start_time = pd.Timestamp.now()
 
-station_id = pd.read_csv('station_id.csv')
+station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 
 # Load and preprocess the dataset
 # id = '01096000'
@@ -83,7 +83,6 @@ model = ga(function = nse,
 
 model.run()
 #end of genetic algorithm
-print('Time taken for calibration:', pd.Timestamp.now() - time_start)
 
 #output of the genetic algorithm/best parameters
 best_parameters = model.output_dict
@@ -235,7 +234,7 @@ arima_model = auto_arima(y_train_arima, # residuals from XGBoost model
                          stepwise=True, # stepwise is true to speed up the search
                          suppress_warnings=True, # suppress warnings
                          error_action="ignore", # ignore orders that don't converge
-                         trace=True) # print results while training
+                         trace=False) # print results while training
 print(f"Best ARIMA Order: {arima_model.order}")
 print(f"Best Seasonal Order: {arima_model.seasonal_order}")
 best_order = arima_model.order
@@ -311,7 +310,7 @@ if station_id == '01096000':
     time_taken = end_time - start_time
     time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
     time_taken_df.to_csv(f'output/time_taken/hbv_sarima{station_id}.csv', index=False)
-
+print('Completed!!!')
 # # visualize the actual vs forecasted values from the forecast_df
 # final_forecast_df['day'] = final_forecast_df['Date'].dt.day
 # #find average of observed and forecasted values for each day

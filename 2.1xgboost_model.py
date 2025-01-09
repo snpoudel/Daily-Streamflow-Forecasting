@@ -14,7 +14,7 @@ size = comm.Get_size()
 #create a start time stamp
 start_time = pd.Timestamp.now()
 
-station_id = pd.read_csv('station_id.csv')
+station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 
 # Load and preprocess the dataset
 # id = '01096000'
@@ -115,7 +115,7 @@ if id == '01096000':
     time_taken = end_time - start_time
     time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
     time_taken_df.to_csv(f'output/time_taken/xgboost{id}.csv', index=False)
-
+print('Completed!!!')
 # # visualize the actual vs forecasted values from the forecast_df
 # #find average of observed and forecasted values for each day
 # avg_day = forecast_df.groupby('day').mean()

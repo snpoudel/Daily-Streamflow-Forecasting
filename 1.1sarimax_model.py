@@ -15,7 +15,7 @@ size = comm.Get_size()
 #create a start time stamp
 start_time = pd.Timestamp.now()
 
-station_id = pd.read_csv('station_id.csv')
+station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 
 # Load and preprocess the dataset
 # id = '01096000'
@@ -45,10 +45,11 @@ arima_model = auto_arima(y_train,
                          exogeneous=x_train, # exogeneous variables
                          seasonal=True, # seasonal is true if data has seasonality
                          m=12, # seasonility of 12 months
+                         approximation=True , # use approximation to speed up the search
                          stepwise=True, # stepwise is true to speed up the search
                          suppress_warnings=True, # suppress warnings
                          error_action="ignore", # ignore orders that don't converge
-                         trace=True) # print results while training
+                         trace=False) # print results while training
 print(f"Best ARIMA Order: {arima_model.order}")
 print(f"Best Seasonal Order: {arima_model.seasonal_order}")
 best_order = arima_model.order
@@ -121,6 +122,8 @@ if id == '01096000':
     time_taken = end_time - start_time
     time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
     time_taken_df.to_csv(f'output/time_taken/sarimax{id}.csv', index=False)
+
+print('Completed!!!')
 
 # # visualize the actual vs forecasted values from the forecast_df
 # #find average of observed and forecasted values for each day
