@@ -6,9 +6,19 @@ import matplotlib.pyplot as plt
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
+#create a start time stamp
+start_time = pd.Timestamp.now()
+
+station_id = pd.read_csv('station_id.csv')
+
 # Load and preprocess the dataset
-file_path = "og_file.csv"  # Replace with your file path
+id = '01096000'
+file_path = f"data/hbv_input_{id}.csv"  # Replace with your file path
 df = pd.read_csv(file_path)
+df.drop(columns=['id', 'latitude', 'date'], inplace=True)
+#change column names 
+df.columns = ['year', 'month', 'day', 'temp', 'precip', 'streamflow']
+
 df['date'] = pd.to_datetime(df[['year', 'month', 'day']])
 df = df.drop(columns=['year', 'month', 'day'])
 df.set_index("date", inplace=True)
@@ -90,35 +100,47 @@ for test_year in range(2009, 2016):
         except np.linalg.LinAlgError:
             print(f"LinAlgError for year {test_year}, month {month}. Skipping this month.")
 forecast_df = forecast_df.reset_index(drop=True)
-
-
-# visualize the actual vs forecasted values from the forecast_df
 forecast_df['day'] = forecast_df['Date'].dt.day
-#find average of observed and forecasted values for each day
-avg_day = forecast_df.groupby('day').mean()
-plt.figure(figsize=(6, 4))
-plt.plot(avg_day['Observed'], label='Observed')
-plt.plot(avg_day['Forecast'], label='Forecast')
-plt.title("Observed vs Forecasted Streamflow")
-plt.xlabel("Day")
-plt.ylabel("Streamflow")
-plt.ylim(0, None)
-plt.legend()
-plt.show()
 
-#find rmse for each day forecast and observed values
-rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
-for day in list(range(1,28)):
-    day_df = forecast_df[forecast_df['day'] == day]
-    mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
-    rmse = mse ** 0.5
-    rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
-#plot rmse for each day
-plt.figure(figsize=(6, 4))
-plt.plot(rmse_df['Day'], rmse_df['RMSE'])
-plt.title("RMSE for different forecasting horizons")
-plt.xlabel("Day")
-plt.ylabel("RMSE")
-plt.ylim(0, None)
-plt.show()
+#save as csv
+forecast_df.to_csv(f'output/sarimax/sarimax{id}.csv', index=False)
+#save best order and seasonal order as csv
+best_arima_params = pd.DataFrame({'order': [best_order], 'seasonal_order': [best_seasonal_order]})
+best_arima_params.to_csv(f'output/sarimax/parameters/params{id}.csv', index=False)
+
+#total time taken, save as csv
+if id == '01096000':
+    end_time = pd.Timestamp.now()
+    time_taken = end_time - start_time
+    time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
+    time_taken_df.to_csv(f'output/time_taken/sarimax{id}.csv', index=False)
+
+# # visualize the actual vs forecasted values from the forecast_df
+# #find average of observed and forecasted values for each day
+# avg_day = forecast_df.groupby('day').mean()
+# plt.figure(figsize=(6, 4))
+# plt.plot(avg_day['Observed'], label='Observed')
+# plt.plot(avg_day['Forecast'], label='Forecast')
+# plt.title("Observed vs Forecasted Streamflow")
+# plt.xlabel("Day")
+# plt.ylabel("Streamflow")
+# plt.ylim(0, None)
+# plt.legend()
+# plt.show()
+
+# #find rmse for each day forecast and observed values
+# rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
+# for day in list(range(1,28)):
+#     day_df = forecast_df[forecast_df['day'] == day]
+#     mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
+#     rmse = mse ** 0.5
+#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
+# #plot rmse for each day
+# plt.figure(figsize=(6, 4))
+# plt.plot(rmse_df['Day'], rmse_df['RMSE'])
+# plt.title("RMSE for different forecasting horizons")
+# plt.xlabel("Day")
+# plt.ylabel("RMSE")
+# plt.ylim(0, None)
+# plt.show()
 

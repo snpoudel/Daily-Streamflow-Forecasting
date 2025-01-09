@@ -5,9 +5,18 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from xgboost import XGBRegressor
 from sklearn.model_selection import GridSearchCV
 
+#create a start time stamp
+start_time = pd.Timestamp.now()
+
+station_id = pd.read_csv('station_id.csv')
+
 # Load and preprocess the dataset
-file_path = "og_file.csv"  # Replace with your file path
+id = '01096000'
+file_path = f"data/hbv_input_{id}.csv"  # Replace with your file path
 df = pd.read_csv(file_path)
+df.drop(columns=['id', 'latitude', 'date'], inplace=True)
+#change column names
+df.columns = ['year', 'month', 'day', 'temp', 'precip', 'streamflow']
 
 #use 1994 to 2009 for training and 2009 to 2015 for testing
 train = df[df['year'] < 2009]
@@ -85,33 +94,45 @@ for test_year in range(2009, 2016):
             X_test = test_day.drop(columns=['streamflow'])
             forecast = best_xgb.predict(X_test)
             forecast_df = pd.concat([forecast_df, pd.DataFrame({'year': [test_year], 'month': [month], 'day': [day], 'Observed': [test_day['streamflow'].values[0]], 'Forecast': [forecast[0]]})], ignore_index=True)
-            
 
-# visualize the actual vs forecasted values from the forecast_df
-#find average of observed and forecasted values for each day
-avg_day = forecast_df.groupby('day').mean()
-plt.figure(figsize=(6, 4))
-plt.plot(avg_day['Observed'], label='Observed')
-plt.plot(avg_day['Forecast'], label='Forecast')
-plt.title("Average Observed vs Forecasted Streamflow")
-plt.xlabel("Day")
-plt.ylabel("Streamflow")
-plt.ylim(0, None)
-plt.legend()
-plt.show()
+#save forecast_df as csv
+forecast_df.to_csv(f'output/xgboost/xgboost{id}.csv', index=False)    
+#save cv-rmse, test-rmse, r2 score as csv by making a dataframe
+results_metrics = pd.DataFrame({'CV RMSE': [np.sqrt(-xgb_grid.best_score_)], 'Test RMSE': [rmse], 'R2 Score': [r2]})
+results_metrics.to_csv(f'output/xgboost/metrics/metrics{id}.csv', index=False)
 
-#find rmse for each day forecast and observed values
-rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
-for day in list(range(1,29)):
-    day_df = forecast_df[forecast_df['day'] == day]
-    mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
-    rmse = mse ** 0.5
-    rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
-#plot rmse for each day
-plt.figure(figsize=(6, 4))
-plt.plot(rmse_df['Day'], rmse_df['RMSE'])
-plt.title("RMSE for different forecasting horizons")
-plt.xlabel("Day")
-plt.ylabel("RMSE")
-plt.ylim(0, None)
-plt.show() 
+#total time taken, save as csv
+if id == '01096000':
+    end_time = pd.Timestamp.now()
+    time_taken = end_time - start_time
+    time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
+    time_taken_df.to_csv(f'output/time_taken/xgboost{id}.csv', index=False)
+
+# # visualize the actual vs forecasted values from the forecast_df
+# #find average of observed and forecasted values for each day
+# avg_day = forecast_df.groupby('day').mean()
+# plt.figure(figsize=(6, 4))
+# plt.plot(avg_day['Observed'], label='Observed')
+# plt.plot(avg_day['Forecast'], label='Forecast')
+# plt.title("Average Observed vs Forecasted Streamflow")
+# plt.xlabel("Day")
+# plt.ylabel("Streamflow")
+# plt.ylim(0, None)
+# plt.legend()
+# plt.show()
+
+# #find rmse for each day forecast and observed values
+# rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
+# for day in list(range(1,29)):
+#     day_df = forecast_df[forecast_df['day'] == day]
+#     mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
+#     rmse = mse ** 0.5
+#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
+# #plot rmse for each day
+# plt.figure(figsize=(6, 4))
+# plt.plot(rmse_df['Day'], rmse_df['RMSE'])
+# plt.title("RMSE for different forecasting horizons")
+# plt.xlabel("Day")
+# plt.ylabel("RMSE")
+# plt.ylim(0, None)
+# plt.show()

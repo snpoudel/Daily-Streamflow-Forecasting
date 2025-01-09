@@ -6,12 +6,15 @@ from sklearn.metrics import mean_squared_error, r2_score
 from hbv_model import hbv #imported from local python script
 from geneticalgorithm import geneticalgorithm as ga # install package first
 
+#create a start time stamp
+start_time = pd.Timestamp.now()
+
 ################################################################################################################################################################################################################################
 ##--CALIBRATE--##
 time_start = pd.Timestamp.now()
-#function that reads station ID, takes input for that ID and outputs calibrated parameters and nse values
+station_id = pd.read_csv('station_id.csv')
 #read input csv file
-station_id = '01094400'
+station_id = '01096000'
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
 #only used data upto 2005 for calibration
 df = df[df["year"] < 2009]
@@ -52,9 +55,9 @@ varbound = np.array([[1,1000], #fc #lower and upper bounds of the parameters
                     [1,10]]) #maxbas
 
 algorithm_param = {
-    'max_num_iteration': 50,              # Generations, higher is better, but requires more computational time
+    'max_num_iteration': 5,              # Generations, higher is better, but requires more computational time
     'max_iteration_without_improv': None,   # Stopping criterion for lack of improvement
-    'population_size': 100,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
+    'population_size': 10,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
     'parents_portion': 0.3,                 # Portion of new generation population filled by previous population
     'elit_ratio': 0.01,                     # Portion of the best individuals preserved unchanged
     'crossover_probability': 0.3,           # Chance of existing solution passing its characteristics to new trial solution
@@ -83,7 +86,7 @@ df_param = df_param.rename(columns={0:"fc", 1:"beta", 2:"pwp", 3:"l", 4:"ks", 5:
                             6:"kb", 7:"kperc",  8:"coeff_pet", 9:"ddf", 10:"scf", 11:"ts",
                             12:"tm", 13:"tti", 14:"whc", 15:"crf", 16:"maxbas"})
 df_param["station_id"] = str(station_id)
-df_nse = pd.DataFrame([nse_value], columns=["nse"])
+df_nse = pd.DataFrame([nse_value], columns=["train_nse"])
 df_nse["station_id"] = str(station_id)
 #save as a csv file
 # df_param.to_csv(f"output/param_{station_id}.csv", index = False)
@@ -103,6 +106,7 @@ rmse = mean_squared_error(q_obs, q_sim_test) ** 0.5
 denominator = np.sum((q_obs - (np.mean(q_obs)))**2)
 numerator = np.sum((q_obs - q_sim_test)**2)
 nse_value = 1 - (numerator/denominator)
+df_nse['test_nse'] = nse_value
 print(f"Test RMSE: {rmse:.2f} and NSE: {nse_value:.2f}")
 
 
@@ -133,51 +137,65 @@ for test_year in range(2009, 2016):
 #save the forecasted values
 forecast_df = forecast_df.reset_index(drop=True)
 
-# visualize the actual vs forecasted values from the forecast_df
-forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
-forecast_df['day'] = forecast_df['Date'].dt.day
-#find average of observed and forecasted values for each day
-avg_day = forecast_df.groupby('day').mean()
-plt.figure(figsize=(6, 4))
-plt.plot(avg_day['Observed'], label='Observed')
-plt.plot(avg_day['Forecast'], label='Forecast')
-plt.title("Observed vs Forecasted Streamflow")
-plt.xlabel("Day")
-plt.ylabel("Streamflow")
-plt.ylim(0, None)
-plt.legend()
-plt.grid()
-plt.show()
+#save parameters
+df_param.to_csv(f"output/hbv/parameters/param{station_id}.csv", index = False)
+#save train and test nse values
+df_nse.to_csv(f"output/hbv/metrics/metrics{station_id}.csv", index = False)
+#save forecasted values
+forecast_df.to_csv(f"output/hbv/hbv{station_id}.csv", index = False)
 
-#find rmse for each day forecast and observed values
-rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
-for day in list(range(1,28)):
-    day_df = forecast_df[forecast_df['day'] == day]
-    mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
-    rmse = mse ** 0.5
-    rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
-#plot rmse for each day
-plt.figure(figsize=(6, 4))
-plt.plot(rmse_df['Day'], rmse_df['RMSE'])
-plt.title("RMSE for different forecasting horizons")
-plt.xlabel("Day")
-plt.ylabel("RMSE")
-plt.ylim(0, None)
-plt.show()  
+#total time taken, save as csv
+if station_id == '01096000':
+    end_time = pd.Timestamp.now()
+    time_taken = end_time - start_time
+    time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
+    time_taken_df.to_csv(f'output/time_taken/hbv{id}.csv', index=False)
 
-#find nse for each day forecast and observed values
-nse_df = pd.DataFrame(columns=['Day', 'NSE'])
-for day in list(range(1,28)):
-    day_df = forecast_df[forecast_df['day'] == day]
-    denominator = np.sum((day_df['Observed'] - (np.mean(day_df['Observed'])))**2)
-    numerator = np.sum((day_df['Observed'] - day_df['Forecast'])**2)
-    nse = 1 - (numerator/denominator)
-    nse_df = pd.concat([nse_df, pd.DataFrame({'Day': [day], 'NSE': [nse]})])
-#plot nse for each day
-plt.figure(figsize=(6, 4))
-plt.plot(nse_df['Day'], nse_df['NSE'])
-plt.title("NSE for different forecasting horizons")
-plt.xlabel("Day")
-plt.ylabel("NSE")
-plt.ylim(0, None)
-plt.show()
+# # visualize the actual vs forecasted values from the forecast_df
+# forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
+# forecast_df['day'] = forecast_df['Date'].dt.day
+# #find average of observed and forecasted values for each day
+# avg_day = forecast_df.groupby('day').mean()
+# plt.figure(figsize=(6, 4))
+# plt.plot(avg_day['Observed'], label='Observed')
+# plt.plot(avg_day['Forecast'], label='Forecast')
+# plt.title("Observed vs Forecasted Streamflow")
+# plt.xlabel("Day")
+# plt.ylabel("Streamflow")
+# plt.ylim(0, None)
+# plt.legend()
+# plt.grid()
+# plt.show()
+
+# #find rmse for each day forecast and observed values
+# rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
+# for day in list(range(1,28)):
+#     day_df = forecast_df[forecast_df['day'] == day]
+#     mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
+#     rmse = mse ** 0.5
+#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
+# #plot rmse for each day
+# plt.figure(figsize=(6, 4))
+# plt.plot(rmse_df['Day'], rmse_df['RMSE'])
+# plt.title("RMSE for different forecasting horizons")
+# plt.xlabel("Day")
+# plt.ylabel("RMSE")
+# plt.ylim(0, None)
+# plt.show()  
+
+# #find nse for each day forecast and observed values
+# nse_df = pd.DataFrame(columns=['Day', 'NSE'])
+# for day in list(range(1,28)):
+#     day_df = forecast_df[forecast_df['day'] == day]
+#     denominator = np.sum((day_df['Observed'] - (np.mean(day_df['Observed'])))**2)
+#     numerator = np.sum((day_df['Observed'] - day_df['Forecast'])**2)
+#     nse = 1 - (numerator/denominator)
+#     nse_df = pd.concat([nse_df, pd.DataFrame({'Day': [day], 'NSE': [nse]})])
+# #plot nse for each day
+# plt.figure(figsize=(6, 4))
+# plt.plot(nse_df['Day'], nse_df['NSE'])
+# plt.title("NSE for different forecasting horizons")
+# plt.xlabel("Day")
+# plt.ylabel("NSE")
+# plt.ylim(0, None)
+# plt.show()
