@@ -9,13 +9,6 @@ from sklearn.model_selection import GridSearchCV
 file_path = "og_file.csv"  # Replace with your file path
 df = pd.read_csv(file_path)
 
-#add lagged features
-# Add lagged features
-for lag in range(1, 4): #add lagged features for 1 to 3 days
-    for col in ['temp', 'precip', 'streamflow']:
-        df[f'{col}_lag{lag}'] = df[col].shift(lag)
-df = df.dropna()
-
 #use 1994 to 2009 for training and 2009 to 2015 for testing
 train = df[df['year'] < 2009]
 test = df[df['year'] >= 2009]
@@ -24,9 +17,7 @@ test = df[df['year'] >= 2009]
 test_pred = test.copy()
 
 #test set for model forecasting
-# Replace streamflow lag with NaN except for the first row in the test set
 test = test.reset_index(drop=True)
-test.loc[:, ['streamflow_lag1', 'streamflow_lag2', 'streamflow_lag3']] = np.nan
 
 #prepare xtrain and ytrain for training
 X_train = train.drop(columns=['streamflow'])
@@ -91,15 +82,9 @@ for test_year in range(2009, 2016):
         test_monthly = test_df[test_df['month'] == month]
         for day in range(1, 29):
             test_day = test_monthly[test_monthly['day'] == day]
-            if day == 1:
-                streamflow_lag1 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'streamflow_lag1'].values[0]
-                streamflow_lag2 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'streamflow_lag2'].values[0]
-                streamflow_lag3 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'streamflow_lag3'].values[0]
-            test_day = test_day.assign(streamflow_lag1=streamflow_lag1, streamflow_lag2=streamflow_lag2, streamflow_lag3=streamflow_lag3)
             X_test = test_day.drop(columns=['streamflow'])
             forecast = best_xgb.predict(X_test)
             forecast_df = pd.concat([forecast_df, pd.DataFrame({'year': [test_year], 'month': [month], 'day': [day], 'Observed': [test_day['streamflow'].values[0]], 'Forecast': [forecast[0]]})], ignore_index=True)
-            streamflow_lag1, streamflow_lag2, streamflow_lag3 = forecast[0], streamflow_lag1, streamflow_lag2
             
 
 # visualize the actual vs forecasted values from the forecast_df
