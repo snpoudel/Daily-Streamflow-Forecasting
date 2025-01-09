@@ -55,9 +55,9 @@ varbound = np.array([[1,1000], #fc #lower and upper bounds of the parameters
                     [1,10]]) #maxbas
 
 algorithm_param = {
-    'max_num_iteration': 5,              # Generations, higher is better, but requires more computational time
+    'max_num_iteration': 100,              # Generations, higher is better, but requires more computational time
     'max_iteration_without_improv': None,   # Stopping criterion for lack of improvement
-    'population_size': 10,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
+    'population_size': 1000,                 #1500 Number of parameter-sets in a single iteration/generation(to start with population 10 times the number of parameters should be fine!)
     'parents_portion': 0.3,                 # Portion of new generation population filled by previous population
     'elit_ratio': 0.01,                     # Portion of the best individuals preserved unchanged
     'crossover_probability': 0.3,           # Chance of existing solution passing its characteristics to new trial solution
@@ -149,7 +149,7 @@ if station_id == '01096000':
     end_time = pd.Timestamp.now()
     time_taken = end_time - start_time
     time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
-    time_taken_df.to_csv(f'output/time_taken/hbv{id}.csv', index=False)
+    time_taken_df.to_csv(f'output/time_taken/hbv{station_id}.csv', index=False)
 
 # # visualize the actual vs forecasted values from the forecast_df
 # forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
