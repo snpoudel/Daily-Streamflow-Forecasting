@@ -134,31 +134,3 @@ if id == '01096000':
     time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
     time_taken_df.to_csv(f'output/time_taken/xgboost_lag{id}.csv', index=False)
 print('Completed!!!')
-# # visualize the actual vs forecasted values from the forecast_df
-# #find average of observed and forecasted values for each day
-# avg_day = forecast_df.groupby('day').mean()
-# plt.figure(figsize=(6, 4))
-# plt.plot(avg_day['Observed'], label='Observed')
-# plt.plot(avg_day['Forecast'], label='Forecast')
-# plt.title("Average Observed vs Forecasted Streamflow")
-# plt.xlabel("Day")
-# plt.ylabel("Streamflow")
-# plt.ylim(0, None)
-# plt.legend()
-# plt.show()
-
-# #find rmse for each day forecast and observed values
-# rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
-# for day in list(range(1,29)):
-#     day_df = forecast_df[forecast_df['day'] == day]
-#     mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
-#     rmse = mse ** 0.5
-#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
-# #plot rmse for each day
-# plt.figure(figsize=(6, 4))
-# plt.plot(rmse_df['Day'], rmse_df['RMSE'])
-# plt.title("RMSE for different forecasting horizons")
-# plt.xlabel("Day")
-# plt.ylabel("RMSE")
-# plt.ylim(0, None)
-# plt.show() 
