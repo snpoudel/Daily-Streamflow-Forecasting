@@ -95,7 +95,7 @@ plt.figure(figsize=(6, 4))
 sns.boxplot(data=df_melted, x="NSE_Day", y="NSE_Value", hue="model",
             showfliers=False, width=0.6)
 # Customize plot
-plt.title("Forcast accuracy at different forecasting horizons")
+plt.title("Streamflow forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")
 #change x axis labels
 plt.xticks(ticks=[0, 1, 2, 3, 4], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15'])
@@ -106,8 +106,8 @@ plt.legend(title='Model', loc='best')
 plt.ylim(0,None)
 plt.grid(linestyle='--', alpha=0.8)
 plt.tight_layout()
+plt.savefig('figures/short_forecast_NSEaccuracy.png', dpi=300)
 plt.show()
-plt.savefig('output/short_forecast_NSEaccuracy.png', dpi=300)
 
 
 ############################################################################################################################################################################################################################################
@@ -195,16 +195,16 @@ plt.figure(figsize=(6, 4))
 sns.boxplot(data=df_melted, x="NSE_Day", y="NSE_Value", hue="model",
             showfliers=False, width=0.6)
 # Customize plot
-plt.title("Forcast accuracy at different forecasting horizons")
+plt.title("Streamflow forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")
 #change x axis labels
 plt.xticks(ticks=[0, 1, 2, 3, 4], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15'])
-plt.ylabel("RMSE Value")
+plt.ylabel("RMSE Value (mm/day)")
 plt.legend(title='Model', loc='best')
 # plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
 # Show the plot
 plt.ylim(0,None)
 plt.grid(linestyle='--', alpha=0.8)
 plt.tight_layout()
+plt.savefig('figures/short_forecast_RMSEaccuracy.png', dpi=300)
 plt.show()
-plt.savefig('output/short_forecast_RMSEaccuracy.png', dpi=300)
