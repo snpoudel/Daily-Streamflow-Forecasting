@@ -98,7 +98,8 @@ df_hbv_xgboost['model'] = 'hbv_xgboost'
 # df_merged = pd.concat([df_sarimax, df_xgboost, df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 df_merged = pd.concat([df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 #model factor levels
-df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost','hbv_sarima', 'xgboost_lag', 'hbv'], ordered=True)
+# df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost','hbv_sarima', 'xgboost_lag', 'hbv'], ordered=True)
+df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv', 'hbv_sarima', 'xgboost_lag', 'hbv_xgboost' ], ordered=True)
 
 #melt the dataframe
 df_melted = df_merged.melt(
@@ -117,11 +118,11 @@ plt.title("High flow (>75th percentile) forecast accuracy at different lead time
 plt.xlabel("Forecast Lead Time")
 #change x axis labels
 plt.xticks(ticks=[0, 1, 2, 3, 4, 5], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15', 'Day 28'])
-plt.ylabel("NSE Value (mm/day)")
+plt.ylabel("NSE Value")
 plt.legend(title='Model', loc='best')
 # plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
 # Show the plot
-plt.ylim(0,None)
+plt.ylim(-1,None)
 plt.grid(linestyle='--', alpha=0.8)
 plt.tight_layout()
 plt.savefig('figures/flood_forecast_NSEaccuracy.png', dpi=300)
@@ -216,7 +217,8 @@ df_hbv_xgboost['model'] = 'hbv_xgboost'
 # df_merged = pd.concat([df_sarimax, df_xgboost, df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 df_merged = pd.concat([df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 #model factor levels
-df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost','hbv_sarima', 'xgboost_lag', 'hbv'], ordered=True)
+# df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost','hbv_sarima', 'xgboost_lag', 'hbv'], ordered=True)
+df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv', 'hbv_sarima', 'xgboost_lag', 'hbv_xgboost' ], ordered=True)
 
 #melt the dataframe
 df_melted = df_merged.melt(

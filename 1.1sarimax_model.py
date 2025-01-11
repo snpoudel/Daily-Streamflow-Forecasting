@@ -10,6 +10,11 @@ from mpi4py import MPI
 import warnings
 warnings.filterwarnings('ignore')
 
+#rmse function
+def rmse(y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true, y_pred))
+
+
 #set up MPI communicator
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -21,7 +26,7 @@ start_time = pd.Timestamp.now()
 station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 
 # Load and preprocess the dataset
-# id = '01096000'
+# rank = 25
 id = station_id['station_id'][rank]
 file_path = f"data/hbv_input_{id}.csv"  # Replace with your file path
 df = pd.read_csv(file_path)
@@ -46,7 +51,7 @@ x_train, x_test = exo_vars[df.index.year < 2009], exo_vars[df.index.year >= 2009
 print("Finding the best ARIMA parameters...")
 arima_model = auto_arima(y_train, 
                          exogeneous=x_train, # exogeneous variables
-                         seasonal=True, # seasonal is true if data has seasonality
+                         seasonal=False, # seasonal is true if data has seasonality
                          m=12, # seasonility of 12 months
                          approximation=True , # use approximation to speed up the search
                          stepwise=True, # stepwise is true to speed up the search
@@ -65,47 +70,56 @@ predict_train = arima_model.fittedvalues
 residuals = y_train['streamflow'] - predict_train
 residuals = residuals.values
 
-# Analyze residuals, plot time series of residuals
-plt.figure(figsize=(6, 4))
-plt.plot(residuals)
-plt.title("Residuals of ARIMA Model")
-plt.xlabel("Time")
-plt.ylabel("Residuals")
-plt.show()
+# # Analyze residuals, plot time series of residuals
+# plt.figure(figsize=(6, 4))
+# plt.plot(residuals)
+# plt.title("Residuals of ARIMA Model")
+# plt.xlabel("Time")
+# plt.ylabel("Residuals")
+# plt.show()
 
-# Ljung-Box test for residuals to check for autocorrelation in residuals
-# Null hypothesis: Residuals are white noise (no autocorrelation)
-# If p-value < 0.05, reject null hypothesis, residuals are not white noise
-lb_test_results = acorr_ljungbox(residuals, lags=50) 
-lb_test_stat = lb_test_results['lb_stat'].values
-lb_p_value = lb_test_results['lb_pvalue'].values
-#make boxplot of lb_p_value, also show points, and threshold line at 0.05
-plt.figure(figsize=(6, 4))
-plt.boxplot(lb_p_value, showfliers=True)
-plt.axhline(y=0.05, color='r', linestyle='--', label="Threshold at 0.05")
-plt.title("Ljung-Box Test P-Values for lag 1-50")
-plt.ylabel("P-Value")
-plt.legend()
-plt.show()
+# # Ljung-Box test for residuals to check for autocorrelation in residuals
+# # Null hypothesis: Residuals are white noise (no autocorrelation)
+# # If p-value < 0.05, reject null hypothesis, residuals are not white noise
+# lb_test_results = acorr_ljungbox(residuals, lags=50) 
+# lb_test_stat = lb_test_results['lb_stat'].values
+# lb_p_value = lb_test_results['lb_pvalue'].values
+# #make boxplot of lb_p_value, also show points, and threshold line at 0.05
+# plt.figure(figsize=(6, 4))
+# plt.boxplot(lb_p_value, showfliers=True)
+# plt.axhline(y=0.05, color='r', linestyle='--', label="Threshold at 0.05")
+# plt.title("Ljung-Box Test P-Values for lag 1-50")
+# plt.ylabel("P-Value")
+# plt.legend()
+# plt.show()
 
 # Use the best fitted ARIMA model to forecast 28-day streamflow using exogeneous variables
 forecast_df = pd.DataFrame(columns=['Date', 'Observed', 'Forecast'])
+#make first 28-day forecast
+first_forecast = arima_model.forecast(steps=28, exog=x_test[0:28])
+forecast_df = pd.concat([forecast_df, pd.DataFrame({
+    'Date': first_forecast.index, 
+    'Observed': y_test['streamflow'].values[0:28], 
+    'Forecast': first_forecast.values
+})], ignore_index=True)
+#make forecast for each month for remaining years
 for test_year in range(2009, 2016):
     x_test_year = x_test[x_test.index.year == test_year]
     y_test_year = y_test[y_test.index.year == test_year]
     for month in range(1, 12):  # Loop through all 12 months
         x_test_monthly = x_test_year[x_test_year.index.month == month]
         y_test_monthly = y_test_year[y_test_year.index.month == month]
+        y_test_monthlyplus1 = y_test_year[y_test_year.index.month == month+1]
         x_test_forecast = x_test_year[x_test_year.index.month == (month+1)]
         try:
             # Fit SARIMAX model and forecast for 15 steps
-            results = SARIMAX(y_test_monthly, order=best_order, seasonal_order=best_seasonal_order, exog=x_test_monthly).fit(maxiter=500, disp=False)
+            results = SARIMAX(y_test_monthly, order=best_order, seasonal_order=best_seasonal_order, exog=x_test_monthly).fit()
             forecast_monthly = results.forecast(steps=28, exog=x_test_forecast[0:28])
             
             # Append forecast data to the DataFrame
             forecast_df = pd.concat([forecast_df, pd.DataFrame({
                 'Date': forecast_monthly.index, 
-                'Observed': y_test_monthly['streamflow'].values[0:28], 
+                'Observed': y_test_monthlyplus1['streamflow'].values[0:28], 
                 'Forecast': forecast_monthly.values
             })], ignore_index=True)
         except np.linalg.LinAlgError:
@@ -145,11 +159,10 @@ print('Completed!!!')
 # rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
 # for day in list(range(1,28)):
 #     day_df = forecast_df[forecast_df['day'] == day]
-#     mse = mean_squared_error(day_df['Observed'], day_df['Forecast'])
-#     rmse = mse ** 0.5
-#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
+#     rmse_val = rmse(day_df['Observed'], day_df['Forecast'])
+#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse_val]})])
 # #plot rmse for each day
-# plt.figure(figsize=(6, 4))
+# plt.figure(figsize=(6, 3))
 # plt.plot(rmse_df['Day'], rmse_df['RMSE'])
 # plt.title("RMSE for different forecasting horizons")
 # plt.xlabel("Day")
@@ -157,3 +170,17 @@ print('Completed!!!')
 # plt.ylim(0, None)
 # plt.show()
 
+# #find r2 score for each day forecast and observed values
+# r2_df = pd.DataFrame(columns=['Day', 'R2'])
+# for day in list(range(1,28)):
+#     day_df = forecast_df[forecast_df['day'] == day]
+#     r2 = r2_score(day_df['Observed'], day_df['Forecast'])
+#     r2_df = pd.concat([r2_df, pd.DataFrame({'Day': [day], 'R2': [r2]})])
+# #plot r2 score for each day
+# plt.figure(figsize=(6, 3))
+# plt.plot(r2_df['Day'], r2_df['R2'])
+# plt.title("R2 Score for different forecasting horizons")
+# plt.xlabel("Day")
+# plt.ylabel("R2 Score")
+# # plt.ylim(0, 1)
+# plt.show()

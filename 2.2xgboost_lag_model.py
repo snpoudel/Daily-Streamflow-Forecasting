@@ -20,7 +20,7 @@ start_time = pd.Timestamp.now()
 station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 
 # Load and preprocess the dataset
-# id = '01096000'
+# id = '01181000'
 id = station_id['station_id'][rank]
 
 file_path = f"data/hbv_input_{id}.csv"  # Replace with your file path
@@ -89,21 +89,21 @@ rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 r2 = r2_score(y_test, y_pred)
 print(f"Test RMSE: {rmse:.2f} & R2 Score: {r2:.2f}")
 
-#feature importance plot
-importances = best_xgb.feature_importances_
-#sort the importances
-indices = np.argsort(importances)[::-1]
-#plot the importances
-plt.figure(figsize=(6, 4))
-plt.bar(X_train.columns[indices], importances[indices])
-plt.title("Feature Importance/Variance Explained Plot")
-plt.xlabel("Features")
-plt.ylabel("Importance")
-plt.xticks(rotation=90)
-plt.tight_layout()
-plt.show()
+# #feature importance plot
+# importances = best_xgb.feature_importances_
+# #sort the importances
+# indices = np.argsort(importances)[::-1]
+# #plot the importances
+# plt.figure(figsize=(6, 4))
+# plt.bar(X_train.columns[indices], importances[indices])
+# plt.title("Feature Importance/Variance Explained Plot")
+# plt.xlabel("Features")
+# plt.ylabel("Importance")
+# plt.xticks(rotation=90)
+# plt.tight_layout()
+# plt.show()
 
-# Make 15-day forecast
+# Make 28-day forecast
 forecast_df = pd.DataFrame(columns=['year', 'month', 'day', 'Observed', 'Forecast'])
 for test_year in range(2009, 2016):
     test_df = test[test['year'] == test_year]
@@ -134,3 +134,31 @@ if id == '01096000':
     time_taken_df = pd.DataFrame({'time_taken': [time_taken]})
     time_taken_df.to_csv(f'output/time_taken/xgboost_lag{id}.csv', index=False)
 print('Completed!!!')
+
+# # visualize the actual vs forecasted values from the forecast_df
+# #find average of observed and forecasted values for each day
+# avg_day = forecast_df.groupby('day').mean()
+# plt.figure(figsize=(6, 4))
+# plt.plot(avg_day['Observed'], label='Observed')
+# plt.plot(avg_day['Forecast'], label='Forecast')
+# plt.title("Observed vs Forecasted Streamflow")
+# plt.xlabel("Day")
+# plt.ylabel("Streamflow")
+# plt.ylim(0, None)
+# plt.legend()
+# plt.show()
+
+# #find r2 score for each day forecast and observed values
+# r2_df = pd.DataFrame(columns=['Day', 'R2'])
+# for day in list(range(1,28)):
+#     day_df = forecast_df[forecast_df['day'] == day]
+#     r2 = r2_score(day_df['Observed'], day_df['Forecast'])
+#     r2_df = pd.concat([r2_df, pd.DataFrame({'Day': [day], 'R2': [r2]})])
+# #plot r2 score for each day
+# plt.figure(figsize=(6, 3))
+# plt.plot(r2_df['Day'], r2_df['R2'])
+# plt.title("R2 Score for different forecasting horizons")
+# plt.xlabel("Day")
+# plt.ylabel("R2 Score")
+# # plt.ylim(0, 1)
+# plt.show()

@@ -80,7 +80,8 @@ df_hbv_xgboost['model'] = 'hbv_xgboost'
 # df_merged = pd.concat([df_sarimax, df_xgboost, df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 df_merged = pd.concat([df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 #model factor levels
-df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost','hbv_sarima', 'xgboost_lag', 'hbv'], ordered=True)
+# df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost', 'xgboost_lag', 'hbv_sarima', 'hbv'], ordered=True)
+df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv', 'hbv_sarima', 'xgboost_lag', 'hbv_xgboost' ], ordered=True)
 
 #melt the dataframe
 df_melted = df_merged.melt(
@@ -180,7 +181,8 @@ df_hbv_xgboost['model'] = 'hbv_xgboost'
 # df_merged = pd.concat([df_sarimax, df_xgboost, df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 df_merged = pd.concat([df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost], ignore_index=True)
 #model factor levels
-df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost','hbv_sarima', 'xgboost_lag', 'hbv'], ordered=True)
+# df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost', 'xgboost_lag', 'hbv_sarima', 'hbv'], ordered=True)
+df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv', 'hbv_sarima', 'xgboost_lag', 'hbv_xgboost' ], ordered=True)
 
 #melt the dataframe
 df_melted = df_merged.melt(
