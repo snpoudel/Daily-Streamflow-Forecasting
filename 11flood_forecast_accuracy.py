@@ -16,7 +16,7 @@ def nse(observed, simulated):
     nse = 1 - (numerator/denominator)
     return nse
 
-forecast_days = [1, 3, 5, 7, 15]
+forecast_days = [1, 3, 5, 7, 15, 28]
 
 #sarimax model
 df_sarimax = pd.DataFrame()
@@ -103,20 +103,20 @@ df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost
 #melt the dataframe
 df_melted = df_merged.melt(
     id_vars=["station_id", "model"],
-    value_vars=["nse_day1", "nse_day3", "nse_day5", "nse_day7", "nse_day15"],
+    value_vars=["nse_day1", "nse_day3", "nse_day5", "nse_day7", "nse_day15", "nse_day28"],
     var_name="NSE_Day",
     value_name="NSE_Value"
 )
 
 # Create a boxplot
-plt.figure(figsize=(6, 4))
+plt.figure(figsize=(7, 4))
 sns.boxplot(data=df_melted, x="NSE_Day", y="NSE_Value", hue="model",
             showfliers=False, width=0.6)
 # Customize plot
 plt.title("High flow (>75th percentile) forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")
 #change x axis labels
-plt.xticks(ticks=[0, 1, 2, 3, 4], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15'])
+plt.xticks(ticks=[0, 1, 2, 3, 4, 5], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15', 'Day 28'])
 plt.ylabel("NSE Value (mm/day)")
 plt.legend(title='Model', loc='best')
 # plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -134,7 +134,7 @@ def rmse(observed, simulated):
     rmse = np.sqrt(np.mean((observed - simulated)**2))
     return rmse
 
-forecast_days = [1, 3, 5, 7, 15]
+forecast_days = [1, 3, 5, 7, 15, 28]
 
 #sarimax model
 df_sarimax = pd.DataFrame()
@@ -221,20 +221,20 @@ df_merged['model'] = pd.Categorical(df_merged['model'], categories=['hbv_xgboost
 #melt the dataframe
 df_melted = df_merged.melt(
     id_vars=["station_id", "model"],
-    value_vars=["nse_day1", "nse_day3", "nse_day5", "nse_day7", "nse_day15"],
+    value_vars=["nse_day1", "nse_day3", "nse_day5", "nse_day7", "nse_day15", "nse_day28"],
     var_name="NSE_Day",
     value_name="NSE_Value"
 )
 
 # Create a boxplot
-plt.figure(figsize=(6, 4))
+plt.figure(figsize=(7, 4))
 sns.boxplot(data=df_melted, x="NSE_Day", y="NSE_Value", hue="model",
             showfliers=False, width=0.6)
 # Customize plot
 plt.title("High flow (>75th percentile) forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")
 #change x axis labels
-plt.xticks(ticks=[0, 1, 2, 3, 4], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15'])
+plt.xticks(ticks=[0, 1, 2, 3, 4, 5], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15', 'Day 28'])
 plt.ylabel("RMSE Value (mm/day)")
 plt.legend(title='Model', loc='best')
 # plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
