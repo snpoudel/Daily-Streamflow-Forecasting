@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from xgboost import XGBRegressor
 from sklearn.model_selection import GridSearchCV
+from synthetic_precip import synthetic_precip #takes original precip and returns synthetic precip with rmse 1, 2, 3, & 4 mm/day
 from mpi4py import MPI
 #ignore warnings
 import warnings
@@ -135,30 +136,42 @@ if id == '01096000':
     time_taken_df.to_csv(f'output/time_taken/xgboost_lag{id}.csv', index=False)
 print('Completed!!!')
 
-# # visualize the actual vs forecasted values from the forecast_df
-# #find average of observed and forecasted values for each day
-# avg_day = forecast_df.groupby('day').mean()
-# plt.figure(figsize=(6, 4))
-# plt.plot(avg_day['Observed'], label='Observed')
-# plt.plot(avg_day['Forecast'], label='Forecast')
-# plt.title("Observed vs Forecasted Streamflow")
-# plt.xlabel("Day")
-# plt.ylabel("Streamflow")
-# plt.ylim(0, None)
-# plt.legend()
-# plt.show()
 
-# #find r2 score for each day forecast and observed values
-# r2_df = pd.DataFrame(columns=['Day', 'R2'])
-# for day in list(range(1,28)):
-#     day_df = forecast_df[forecast_df['day'] == day]
-#     r2 = r2_score(day_df['Observed'], day_df['Forecast'])
-#     r2_df = pd.concat([r2_df, pd.DataFrame({'Day': [day], 'R2': [r2]})])
-# #plot r2 score for each day
-# plt.figure(figsize=(6, 3))
-# plt.plot(r2_df['Day'], r2_df['R2'])
-# plt.title("R2 Score for different forecasting horizons")
-# plt.xlabel("Day")
-# plt.ylabel("R2 Score")
-# # plt.ylim(0, 1)
-# plt.show()
+############################################################################################################################################################################
+##--Forecast under precipitation uncertainty--##
+# Make 28-day forecast
+train_uq = train.tail(3).reset_index(drop=True) #get last 3 day of train
+test_uq = pd.concat([train_uq, test], ignore_index=True) #combine last 3 days of train with test
+# test_uq = test_uq.drop(columns=['precip_lag1', 'precip_lag2', 'precip_lag3'])
+
+precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
+precip_uq = [precip1, precip2, precip3, precip4]
+error_level = ['rmse1', 'rmse2', 'rmse3', 'rmse4']
+
+forecast_df = pd.DataFrame(columns=['year', 'month', 'day', 'Observed', 'Forecast', 'error'])
+for index, puq in enumerate(precip_uq):
+    test_uq['precip'] = puq
+    test_uq.loc[:, ['precip_lag1', 'precip_lag2', 'precip_lag3']] = np.nan
+    for lag in range(1, 4): #add lagged features for 1 to 3 days
+        test_uq['precip_lag1'] = test_uq['precip'].shift(lag)
+        test_uq['precip_lag2'] = test_uq['precip'].shift(lag)
+        test_uq['precip_lag3'] = test_uq['precip'].shift(lag)
+    test_uq = test_uq[test_uq['year'] >= 2009]
+    for test_year in range(2009, 2016):
+        test_df = test_uq[test_uq['year'] == test_year]
+        for month in range(1, 12):
+            test_monthly = test_df[test_df['month'] == month]
+            for day in range(1, 29):
+                test_day = test_monthly[test_monthly['day'] == day]
+                if day == 1:
+                    streamflow_lag1 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'streamflow_lag1'].values[0]
+                    streamflow_lag2 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'streamflow_lag2'].values[0]
+                    streamflow_lag3 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'streamflow_lag3'].values[0]
+                test_day = test_day.assign(streamflow_lag1=streamflow_lag1, streamflow_lag2=streamflow_lag2, streamflow_lag3=streamflow_lag3)
+                X_test = test_day.drop(columns=['streamflow'])
+                forecast = best_xgb.predict(X_test)
+                forecast_df = pd.concat([forecast_df, pd.DataFrame({'year': [test_year], 'month': [month], 'day': [day], 'Observed': [test_day['streamflow'].values[0]], 'Forecast': [forecast[0]], 'error': error_level[index]})], ignore_index=True)
+                streamflow_lag1, streamflow_lag2, streamflow_lag3 = forecast[0], streamflow_lag1, streamflow_lag2
+                
+#save forecast_df as csv
+forecast_df.to_csv(f'output/xgboost_lag/puq/xgboost_lag{id}.csv', index=False)    

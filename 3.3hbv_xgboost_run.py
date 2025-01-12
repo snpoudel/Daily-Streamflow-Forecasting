@@ -6,6 +6,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 from hbv_model import hbv #imported from local python script
 from xgboost import XGBRegressor
 from sklearn.model_selection import GridSearchCV
+from synthetic_precip import synthetic_precip #takes original precip and returns synthetic precip with rmse 1, 2, 3, & 4 mm/day
 from mpi4py import MPI
 #ignore warnings
 import warnings
@@ -137,7 +138,7 @@ r2 = r2_score(y_test, y_pred)
 print(f"Test RMSE: {rmse:.2f} & R2 Score: {r2:.2f}")
 
 
-# Make 15-day forecast
+# Make 28-day forecast
 forecast_residual_df = pd.DataFrame(columns=['year', 'month', 'day', 'Observed', 'Forecast'])
 for test_year in range(2009, 2016):
     test_df = test[test['year'] == test_year]
@@ -178,33 +179,56 @@ if station_id == '01096000':
     time_taken_df.to_csv(f'output/time_taken/hbv_xgboost{station_id}.csv', index=False)
 print('Completed!!!')
 
-# # visualize the actual vs forecasted values from the forecast_df
-# #find average of observed and forecasted values for each day
-# avg_day = final_forecast_df.groupby('day_hbv').mean()
-# plt.figure(figsize=(6, 4))
-# plt.plot(avg_day['Observed_hbv'], label='Observed')
-# plt.plot(avg_day['Final_Forecast'], label='HBV+XGBoost Forecast')
-# plt.title("Observed vs Forecasted Streamflow")
-# plt.xlabel("Day")
-# plt.ylabel("Streamflow")
-# plt.ylim(0, None)
-# plt.legend()
-# plt.grid()
-# plt.show()
 
 
-# #find rmse for each day forecast and observed values
-# rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
-# for day in list(range(1,29)):
-#     day_df = final_forecast_df[final_forecast_df['day_hbv'] == day]
-#     mse = mean_squared_error(day_df['Observed_hbv'], day_df['Final_Forecast'])
-#     rmse = mse ** 0.5
-#     rmse_df = pd.concat([rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
-# #plot rmse for each day
-# plt.figure(figsize=(6, 4))
-# plt.plot(rmse_df['Day'], rmse_df['RMSE'])
-# plt.title("RMSE for different forecasting horizons")
-# plt.xlabel("Day")
-# plt.ylabel("RMSE")
-# plt.ylim(0, None)
-# plt.show()
+################################################################################################################################################################################################################################
+##--Forecast with precipitation uncertainty--##
+#read hbv foreacast under precipitation uncertainty
+final_forecast_df = pd.read_csv(f'output/hbv/puq/hbv{station_id}.csv')
+# Make 28-day forecast
+train_uq = train.tail(3).reset_index(drop=True) #get last 3 day of train
+test_uq = pd.concat([train_uq, test], ignore_index=True) #combine last 3 days of train with test
+# test_uq = test_uq.drop(columns=['precip_lag1', 'precip_lag2', 'precip_lag3'])
+
+precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
+precip_uq = [precip1, precip2, precip3, precip4]
+error_level = ['rmse1', 'rmse2', 'rmse3', 'rmse4']
+
+forecast_df = pd.DataFrame()
+for index, puq in enumerate(precip_uq):
+    test_uq['precip'] = puq
+    test_uq.loc[:, ['precip_lag1', 'precip_lag2', 'precip_lag3']] = np.nan
+    for lag in range(1, 4): #add lagged features for 1 to 3 days
+        test_uq['precip_lag1'] = test_uq['precip'].shift(lag)
+        test_uq['precip_lag2'] = test_uq['precip'].shift(lag)
+        test_uq['precip_lag3'] = test_uq['precip'].shift(lag)
+    test_uq = test_uq[test_uq['year'] >= 2009]
+    for test_year in range(2009, 2016):
+        test_df = test_uq[test_uq['year'] == test_year]
+        for month in range(1, 12):
+            test_monthly = test_df[test_df['month'] == month]
+            for day in range(1, 29):
+                test_day = test_monthly[test_monthly['day'] == day]
+                if day == 1:
+                    residual_lag1 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'residual_lag1'].values[0]
+                    residual_lag2 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'residual_lag2'].values[0]
+                    residual_lag3 = test_pred.loc[(test_pred['year'] == test_year) & (test_pred['month'] == month) & (test_pred['day'] == day), 'residual_lag3'].values[0]
+                test_day = test_day.assign(residual_lag1=residual_lag1, residual_lag2=residual_lag2, residual_lag3=residual_lag3)
+                X_test = test_day.drop(columns=['residual'])
+                forecast = best_xgb.predict(X_test)
+                temp_df = pd.DataFrame({'year': [test_year], 'month': [month], 'day': [day], 'xgboost_observed': [test_day['residual'].values[0]], 'xgboost_forecast': [forecast[0]], 'error': error_level[index]})
+                temp_df['date'] = pd.to_datetime(temp_df[['year', 'month', 'day']])
+                temp_df = temp_df.drop(columns=['year', 'month', 'day'])
+                #extract Forecast_hbv from final_forecast_df based on date
+                final_forecast_df = pd.read_csv(f'output/hbv/puq/hbv{station_id}.csv')
+                final_forecast_df = final_forecast_df[final_forecast_df['error'] == error_level[index]].reset_index(drop=True)
+                final_forecast_df['Date'] = pd.to_datetime(final_forecast_df['Date'])
+                temp_df['hbv_forecast'] = final_forecast_df.loc[final_forecast_df['Date'].isin(temp_df['date']) , 'Forecast'].values[0]
+                temp_df['hbv_observed'] = final_forecast_df.loc[final_forecast_df['Date'].isin(temp_df['date']) , 'Observed'].values[0]
+                #total forecast is the sum of hbv_forecast and xgboost_forecast
+                temp_df['total_forecast'] = temp_df['hbv_forecast'] + temp_df['xgboost_forecast']
+                forecast_df = pd.concat([forecast_df, temp_df], ignore_index=True)
+                residual_lag1, residual_lag2, residual_lag3 = forecast[0], residual_lag1, residual_lag2
+                
+#save forecast_df as csv
+forecast_df.to_csv(f'output/hbv_xgboost/puq/hbv_xgboost{station_id}.csv', index=False)    

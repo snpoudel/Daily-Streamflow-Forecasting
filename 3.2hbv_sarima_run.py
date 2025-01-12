@@ -7,6 +7,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from pmdarima import auto_arima
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from hbv_model import hbv
+from synthetic_precip import synthetic_precip #takes original precip and returns synthetic precip with rmse 1, 2, 3, & 4 mm/day
 from mpi4py import MPI
 #ignore warnings
 import warnings
@@ -25,14 +26,14 @@ station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 # Load and preprocess the dataset
 # id = '01096000'
 station_id = station_id['station_id'][rank]
+
 ################################################################################################################################################################################################################################
 ##--HBV--##
 param_value = pd.read_csv(f'output/hbv/parameters/param{station_id}.csv')
 param_value = param_value.drop(columns=['station_id'])
 param_value = param_value.values[0]
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
-#only used data upto 2005 for calibration
-# df = df[df["year"] < 2009]
+
 #hbv model input
 p = df["precip"]
 temp = df["tavg"]
@@ -40,7 +41,6 @@ date = df["date"]
 latitude = df["latitude"]
 routing = 1 # 0: no routing, 1 allows running
 q_obs = df["qobs"] #validation data / observed flow
-
 
 #run the model to the entire dataset
 q_sim,_ ,_  = hbv(param_value, p, temp, date, latitude, routing)
@@ -65,28 +65,8 @@ residuals_test = residuals_test[['date', 'residuals']].set_index('date')
 forecast_df = pd.read_csv(f"output/hbv/hbv{station_id}.csv")
 forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
 
-
-
 ################################################################################################################################################################################################################################
 ##--SARIMA--##
-#check for autocorrelation in residuals
-# Ljung-Box test for residuals to check for autocorrelation in residuals
-# Null hypothesis: Residuals are white noise (no autocorrelation)
-# If p-value < 0.05, reject null hypothesis, residuals are not white noise
-# lb_test_results = acorr_ljungbox(residuals_train, lags=50)
-# lb_test_stat = lb_test_results['lb_stat'].values
-# lb_p_value = lb_test_results['lb_pvalue'].values
-# #make boxplot of lb_p_value, also show points, and threshold line at 0.05
-# plt.figure(figsize=(6, 4))
-# plt.boxplot(lb_p_value, showfliers=False)
-# plt.axhline(y=0.05, color='r', linestyle='--', label="Threshold at 0.05")
-# plt.title("Ljung-Box Test P-Values for\nNull Hypothesis of No Autocorrelation")
-# plt.ylabel("P-Value")
-# plt.xlabel('1-50 day lag')
-# plt.legend()
-# plt.show()
-
-
 # Fit auto_arima to find the best ARIMA parameters on the training set
 y_train_arima = residuals_train['residuals']
 y_test_arima = residuals_test['residuals']
@@ -113,31 +93,6 @@ arima_model = SARIMAX(y_train_arima, order=best_order, seasonal_order=best_seaso
 predict_train = arima_model.fittedvalues
 residuals = y_train_arima.values - predict_train
 residuals = residuals.values
-
-# # Analyze residuals, plot time series of residuals
-# plt.figure(figsize=(6, 4))
-# plt.plot(residuals)
-# plt.title("Residuals of ARIMA Model")
-# plt.xlabel("Time")
-# plt.ylabel("Residuals")
-# plt.show()
-
-# # Ljung-Box test for residuals to check for autocorrelation in residuals
-# # Null hypothesis: Residuals are white noise (no autocorrelation)
-# # If p-value < 0.05, reject null hypothesis, residuals are not white noise
-# lb_test_results = acorr_ljungbox(residuals, lags=50) 
-# lb_test_stat = lb_test_results['lb_stat'].values
-# lb_p_value = lb_test_results['lb_pvalue'].values
-# #make boxplot of lb_p_value, also show points, and threshold line at 0.05
-# plt.figure(figsize=(6, 4))
-# plt.boxplot(lb_p_value, showfliers=True)
-# plt.axhline(y=0.05, color='r', linestyle='--', label="Threshold at 0.05")
-# plt.title("Ljung-Box Test P-Values for\nNull Hypothesis of No Autocorrelation")
-# plt.ylabel("P-Value")
-# plt.xlabel('1-50 day lag')
-# plt.legend()
-# plt.show()
-
 
 # Use the best fitted ARIMA model to forecast 28-day streamflow residuals
 #make first 28-day forecast
@@ -188,35 +143,32 @@ if station_id == '01096000':
     time_taken_df.to_csv(f'output/time_taken/hbv_sarima{station_id}.csv', index=False)
 print('Completed!!!')
 
-# # visualize the actual vs forecasted values from the forecast_df
-# final_forecast_df['day'] = final_forecast_df['Date'].dt.day
-# #find average of observed and forecasted values for each day
-# avg_day = final_forecast_df.groupby('day').mean()
-# plt.figure(figsize=(6, 4))
-# plt.plot(avg_day['Observed_hbv'], label='Observed')
-# plt.plot(avg_day['Forecast_hbv'], label='HBV Forecast')
-# plt.plot(avg_day['Final_Forecast'], label='HBV+SARIMA Forecast')
-# plt.title("Observed vs Forecasted Streamflow")
-# plt.xlabel("Day")
-# plt.ylabel("Streamflow")
-# plt.ylim(0, None)
-# plt.legend()
-# plt.grid()
-# plt.show()
 
+################################################################################################################################################################################################################################
+##--Forecasting with precipitation uncertainty--##
+#get HBV forecasted dataframe csv 
+df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
+df = df[df['year'] >= 2009].reset_index(drop=True)
 
-# #find rmse for each day forecast and observed values
-# final_rmse_df = pd.DataFrame(columns=['Day', 'RMSE'])
-# for day in list(range(1,28)):
-#     day_df = final_forecast_df[final_forecast_df['day'] == day]
-#     mse = mean_squared_error(day_df['Observed_hbv'], day_df['Final_Forecast'])
-#     rmse = mse ** 0.5
-#     final_rmse_df = pd.concat([final_rmse_df, pd.DataFrame({'Day': [day], 'RMSE': [rmse]})])
-# #plot rmse for each day
-# plt.figure(figsize=(6, 4))
-# plt.plot(final_rmse_df['Day'], final_rmse_df['RMSE'])
-# plt.title("RMSE for different forecasting horizons")
-# plt.xlabel("Day")
-# plt.ylabel("RMSE")
-# plt.ylim(0, None)
-# plt.show()
+precip1, precip2, precip3, precip4 = synthetic_precip(df['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
+precip_uq = [precip1, precip2, precip3, precip4]
+error_level = ['rmse1', 'rmse2', 'rmse3', 'rmse4']
+
+forecast_df_uq = pd.DataFrame()
+for index, puq in enumerate(precip_uq):
+    forecast_df = pd.read_csv(f"output/hbv/puq/hbv{station_id}.csv")
+    #only keep dataframe correspond to error level
+    forecast_df = forecast_df[forecast_df['error'] == error_level[index]]
+    forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
+    ##--SARIMA--##
+    forecast_sarima = final_forecast_df[['Date', 'Forecast_arima']]
+    #merge forecast_df and forecast_sarima on Date
+    forecast_df_temp = pd.merge(forecast_df, forecast_sarima, on='Date', suffixes=('_hbv', '_arima'))
+    forecast_df_temp['Final_Forecast'] = forecast_df_temp['Forecast'] + forecast_df_temp['Forecast_arima']
+    #append to forecast_df_uq
+    forecast_df_uq = pd.concat([forecast_df_uq, forecast_df_temp], ignore_index=True)
+forecast_df_uq = forecast_df_uq.reset_index(drop=True)
+forecast_df_uq['Date'] = pd.to_datetime(forecast_df_uq['Date'])
+
+#save forecasted values
+forecast_df_uq.to_csv(f"output/hbv_sarima/puq/hbv_sarima{station_id}.csv", index = False)
