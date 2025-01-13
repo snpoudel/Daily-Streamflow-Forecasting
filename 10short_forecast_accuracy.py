@@ -16,10 +16,29 @@ station_id = pd.read_csv('station_id.csv', dtype={'station_id': str})
 #     nse = 1 - (numerator/denominator)
 #     return nse
 
-#function to calculate rmse
+# #function to calculate rmse
+# def nse(observed, simulated):
+#     rmse = np.sqrt(np.mean((observed - simulated)**2))
+#     return rmse
+
+# #function to calculate kge
+# def nse(observed, simulated):
+#     r = np.corrcoef(observed, simulated)[0, 1]
+#     alpha = np.std(simulated)/np.std(observed)
+#     beta = np.mean(simulated)/np.mean(observed)
+#     kge = 1 - np.sqrt((r-1)**2 + (alpha-1)**2 + (beta-1)**2)
+#     return kge
+
+# #function to calculate mean absolute error
+# def nse(observed, simulated):
+#     mae = np.mean(np.abs(observed - simulated))
+#     return mae
+
+#function to calculate pbias
 def nse(observed, simulated):
-    rmse = np.sqrt(np.mean((observed - simulated)**2))
-    return rmse
+    pbias = 100 * np.sum(simulated - observed) / np.sum(observed)
+    return pbias
+
 
 forecast_days = [1, 3, 5, 7, 15, 28]
 
@@ -105,12 +124,12 @@ plt.title("Streamflow forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")
 #change x axis labels
 plt.xticks(ticks=[0, 1, 2, 3, 4, 5], labels=['Day 1', 'Day 3', 'Day 5', 'Day 7', 'Day 15', 'Day 28'])
-plt.ylabel("RMSE (mm/day)")
+plt.ylabel("Bias (%)")
 plt.legend(title='Model', loc='best')
 # plt.legend(title="Model", bbox_to_anchor=(1.05, 1), loc='upper left')
 # Show the plot
-plt.ylim(0,None)
+# plt.ylim(0,None)
 plt.grid(axis='y', linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.savefig('figures/short_forecast_RMSEaccuracy.png', dpi=300)
+plt.savefig('figures/1short_forecast_accuracy.png', dpi=300)
 plt.show()
