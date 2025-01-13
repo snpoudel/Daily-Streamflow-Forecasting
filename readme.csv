@@ -11,3 +11,8 @@ Plots Ideas:
 
 8 Now show results under future precip uncertainty
 - result showing how model foreast accuracy changes with error in future precip forecast (1mm, 2mm, 3mm, etc...)
+
+
+Things to take care!
+- need to correct hbv_sarima first!!
+- then need to double check why we are not seeing a consistent declines in performance as we increase precip error!!

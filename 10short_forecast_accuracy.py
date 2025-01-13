@@ -119,6 +119,8 @@ df_melted = df_merged.melt(
 plt.figure(figsize=(7, 4))
 sns.boxplot(data=df_melted, x="NSE_Day", y="NSE_Value", hue="model",
             showfliers=False, width=0.6)
+#draw horizontal red dashed line at 0
+plt.axhline(y=0, color='r', linestyle='--')
 # Customize plot
 plt.title("Streamflow forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")

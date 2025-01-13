@@ -94,16 +94,17 @@ df_hbv['model'] = 'hbv'
 df_hbv_sarima['model'] = 'hbv_sarima'
 df_hbv_xgboost['model'] = 'hbv_xgboost'
 df_all = pd.concat([df_xgboost_lag, df_hbv, df_hbv_sarima, df_hbv_xgboost]).reset_index(drop=True)
-df_all['model'] = pd.Categorical(df_all['model'], categories=['xgboost_lag', 'hbv', 'hbv_sarima', 'hbv_xgboost'], ordered=True)
+df_all['model'] = pd.Categorical(df_all['model'], categories=[ 'hbv', 'hbv_sarima', 'xgboost_lag', 'hbv_xgboost'], ordered=True)
 
 # create boxplot
-fig, axes = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
+fig, axes = plt.subplots(4, 1, figsize=(9, 9), sharex=True)
 # Plot for nse_day1
 sns.boxplot(ax=axes[0], x='error', y='nse_day1', data=df_all, hue='model', showfliers=False, width=0.6)
 axes[0].set_title('a) 1-day High flow (>75th percentile) forecast accuracy at different error levels')
 axes[0].set_ylabel('Bias (%)')
 axes[0].get_legend().remove()
 axes[0].grid(axis='y', linestyle='--', alpha=0.6)
+axes[0].axhline(0, color='red', linestyle='--')
 # axes[0].set_ylim(-1, 1)
 # Plot for nse_day3
 sns.boxplot(ax=axes[1], x='error', y='nse_day5', data=df_all, hue='model', showfliers=False, width=0.6)
@@ -111,6 +112,7 @@ axes[1].set_title('b) 5-day High flow (>75th percentile) forecast accuracy at di
 axes[1].set_ylabel('Bias (%)')
 axes[1].get_legend().remove()
 axes[1].grid(axis='y', linestyle='--', alpha=0.6)
+axes[1].axhline(0, color='red', linestyle='--')
 # axes[1].set_ylim(-1, 1)
 # Plot for nse_day5
 sns.boxplot(ax=axes[2], x='error', y='nse_day15', data=df_all, hue='model', showfliers=False, width=0.6)
@@ -119,6 +121,7 @@ axes[2].set_ylabel('Bias (%)')
 axes[2].get_legend().remove()
 axes[2].set_xlabel('Error in forecasted precipitation (mm/day)')
 axes[2].grid(axis='y', linestyle='--', alpha=0.6)
+axes[2].axhline(0, color='red', linestyle='--')
 # axes[2].set_ylim(-1, 1)
 # Plot for nse_day7
 sns.boxplot(ax=axes[3], x='error', y='nse_day28', data=df_all, hue='model', showfliers=False, width=0.6)
@@ -127,6 +130,7 @@ axes[3].set_ylabel('Bias (%)')
 axes[3].legend(title='Model', loc='lower center',  ncol=4, bbox_to_anchor=(0.5, -0.85))
 axes[3].set_xlabel('Error in forecasted precipitation (mm/day)')
 axes[3].grid(axis='y', linestyle='--', alpha=0.6)
+axes[3].axhline(0, color='red', linestyle='--')
 # axes[3].set_ylim(-1, 1)
 
 plt.tight_layout()

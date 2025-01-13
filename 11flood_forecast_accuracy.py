@@ -123,6 +123,8 @@ df_melted = df_merged.melt(
 plt.figure(figsize=(7, 4))
 sns.boxplot(data=df_melted, x="NSE_Day", y="NSE_Value", hue="model",
             showfliers=False, width=0.6)
+#draw horizontal red dashed line at 0
+plt.axhline(y=0, color='r', linestyle='--')
 # Customize plot
 plt.title("High flow (>75th percentile) forecast accuracy at different lead times")
 plt.xlabel("Forecast Lead Time")
@@ -135,5 +137,5 @@ plt.legend(title='Model', loc='best')
 # plt.ylim(0,None)
 plt.grid(axis='y', linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.savefig('figures/flood_forecast_accuracy.png', dpi=300)
+plt.savefig('figures/2flood_forecast_accuracy.png', dpi=300)
 plt.show()
