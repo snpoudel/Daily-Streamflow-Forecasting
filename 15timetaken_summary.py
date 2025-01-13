@@ -21,15 +21,27 @@ num_cpu_cores = 6
 # Adjust time taken for each model, all model except hbv is run on 6 cpu cores
 time_df['time_seconds'] *= num_cpu_cores
 time_df.loc[time_df['model'] == 'hbv', 'time_seconds'] /= num_cpu_cores
+
+#time taken by hbv_xgboost is sum of time taken by hbv and xgboost
+time_df.loc[time_df['model'] == 'hbv_xgboost', 'time_seconds'] = time_df[time_df['model'] == 'hbv']['time_seconds'].values[0] + time_df[time_df['model'] == 'hbv_xgboost']['time_seconds'].values[0]
+#time taken by hbv_sarima is sum of time taken by hbv and sarimax
+time_df.loc[time_df['model'] == 'hbv_sarima', 'time_seconds'] = time_df[time_df['model'] == 'hbv']['time_seconds'].values[0] + time_df[time_df['model'] == 'hbv_sarima']['time_seconds'].values[0]
 #order in descending order
 time_df = time_df.sort_values(by='time_seconds', ascending=False)
 
+#only keep xgboost_lag, hbv_xgboost and hbv_sarima, hbv
+time_df = time_df[time_df['model'].isin(['xgboost_lag', 'hbv_xgboost', 'hbv_sarima', 'hbv'])]
+
 #make a bar plot with model on x-axis and time taken on y-axis
-plt.figure(figsize=(6, 4))
-sns.barplot(x='model', y='time_seconds', data=time_df, palette='colorblind')
-plt.title("Time Taken by Each Model")
+plt.figure(figsize=(6, 3))
+sns.barplot(x='model', y='time_seconds', data=time_df, width=0.8, hue='model')
+# plt.title("Time Taken by Each Model")
 plt.xlabel("Models")
-plt.xticks(rotation=45)
+plt.xticks(labels=['HBV+XGBoost', 'HBV+ARIMA', 'HBV', 'XGBoost'], ticks=[0, 1, 2, 3])
+# plt.xticks(rotation=45)
 plt.ylabel("Time Taken (seconds)")
+plt.grid(axis='y', linestyle='--', alpha=0.6)
 plt.tight_layout()
+plt.savefig('figures/time_taken.png', dpi=300)
 plt.show()
+
