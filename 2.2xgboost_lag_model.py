@@ -90,20 +90,6 @@ rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 r2 = r2_score(y_test, y_pred)
 print(f"Test RMSE: {rmse:.2f} & R2 Score: {r2:.2f}")
 
-# #feature importance plot
-# importances = best_xgb.feature_importances_
-# #sort the importances
-# indices = np.argsort(importances)[::-1]
-# #plot the importances
-# plt.figure(figsize=(6, 4))
-# plt.bar(X_train.columns[indices], importances[indices])
-# plt.title("Feature Importance/Variance Explained Plot")
-# plt.xlabel("Features")
-# plt.ylabel("Importance")
-# plt.xticks(rotation=90)
-# plt.tight_layout()
-# plt.show()
-
 # Make 28-day forecast
 forecast_df = pd.DataFrame(columns=['year', 'month', 'day', 'Observed', 'Forecast'])
 for test_year in range(2009, 2016):
@@ -121,7 +107,7 @@ for test_year in range(2009, 2016):
             forecast = best_xgb.predict(X_test)
             forecast_df = pd.concat([forecast_df, pd.DataFrame({'year': [test_year], 'month': [month], 'day': [day], 'Observed': [test_day['streamflow'].values[0]], 'Forecast': [forecast[0]]})], ignore_index=True)
             streamflow_lag1, streamflow_lag2, streamflow_lag3 = forecast[0], streamflow_lag1, streamflow_lag2
-            
+
 #save forecast_df as csv
 forecast_df.to_csv(f'output/xgboost_lag/xgboost_lag{id}.csv', index=False)    
 #save cv-rmse, test-rmse, r2 score as csv by making a dataframe
@@ -136,7 +122,6 @@ if id == '01096000':
     time_taken_df.to_csv(f'output/time_taken/xgboost_lag{id}.csv', index=False)
 print('Completed!!!')
 
-
 ############################################################################################################################################################################
 ##--Forecast under precipitation uncertainty--##
 # Make 28-day forecast
@@ -147,14 +132,6 @@ test_uq = pd.concat([train_uq, test], ignore_index=True).reset_index(drop=True) 
 precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
 precip_uq = [test_uq['precip'], precip1, precip2, precip3, precip4]
 error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
-
-plt.plot(test_uq['precip'][0:7], label='Original Precip')
-plt.plot(precip1[0:7], label='Synthetic Precip RMSE 1')
-plt.plot(precip2[0:7], label='Synthetic Precip RMSE 2')
-plt.plot(precip3[0:7], label='Synthetic Precip RMSE 3')
-plt.plot(precip4[0:7], label='Synthetic Precip RMSE 4')
-plt.legend()
-plt.show()
 
 forecast_df = pd.DataFrame(columns=['year', 'month', 'day', 'Observed', 'Forecast', 'error'])
 for index, puq in enumerate(precip_uq):
