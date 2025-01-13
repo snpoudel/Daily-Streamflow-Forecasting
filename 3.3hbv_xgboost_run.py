@@ -191,17 +191,16 @@ test_uq = pd.concat([train_uq, test], ignore_index=True) #combine last 3 days of
 # test_uq = test_uq.drop(columns=['precip_lag1', 'precip_lag2', 'precip_lag3'])
 
 precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
-precip_uq = [precip1, precip2, precip3, precip4]
-error_level = ['rmse1', 'rmse2', 'rmse3', 'rmse4']
+precip_uq = [test_uq['precip'], precip1, precip2, precip3, precip4]
+error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
 
 forecast_df = pd.DataFrame()
 for index, puq in enumerate(precip_uq):
     test_uq['precip'] = puq
     test_uq.loc[:, ['precip_lag1', 'precip_lag2', 'precip_lag3']] = np.nan
     for lag in range(1, 4): #add lagged features for 1 to 3 days
-        test_uq['precip_lag1'] = test_uq['precip'].shift(lag)
-        test_uq['precip_lag2'] = test_uq['precip'].shift(lag)
-        test_uq['precip_lag3'] = test_uq['precip'].shift(lag)
+        for col in [ 'precip']:
+            test_uq[f'{col}_lag{lag}'] = test_uq[col].shift(lag)
     test_uq = test_uq[test_uq['year'] >= 2009]
     for test_year in range(2009, 2016):
         test_df = test_uq[test_uq['year'] == test_year]
@@ -231,4 +230,4 @@ for index, puq in enumerate(precip_uq):
                 residual_lag1, residual_lag2, residual_lag3 = forecast[0], residual_lag1, residual_lag2
                 
 #save forecast_df as csv
-forecast_df.to_csv(f'output/hbv_xgboost/puq/hbv_xgboost{station_id}.csv', index=False)    
+forecast_df.to_csv(f'output/hbv_xgboost/puq/hbv_xgboost{station_id}.csv', index=False)

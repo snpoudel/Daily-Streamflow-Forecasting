@@ -151,8 +151,8 @@ df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
 df = df[df['year'] >= 2009].reset_index(drop=True)
 
 precip1, precip2, precip3, precip4 = synthetic_precip(df['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
-precip_uq = [precip1, precip2, precip3, precip4]
-error_level = ['rmse1', 'rmse2', 'rmse3', 'rmse4']
+precip_uq = [df['precip'], precip1, precip2, precip3, precip4]
+error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
 
 forecast_df_uq = pd.DataFrame()
 for index, puq in enumerate(precip_uq):

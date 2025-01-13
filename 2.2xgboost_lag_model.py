@@ -141,21 +141,28 @@ print('Completed!!!')
 ##--Forecast under precipitation uncertainty--##
 # Make 28-day forecast
 train_uq = train.tail(3).reset_index(drop=True) #get last 3 day of train
-test_uq = pd.concat([train_uq, test], ignore_index=True) #combine last 3 days of train with test
+test_uq = pd.concat([train_uq, test], ignore_index=True).reset_index(drop=True) #combine last 3 days of train with test
 # test_uq = test_uq.drop(columns=['precip_lag1', 'precip_lag2', 'precip_lag3'])
 
 precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
-precip_uq = [precip1, precip2, precip3, precip4]
-error_level = ['rmse1', 'rmse2', 'rmse3', 'rmse4']
+precip_uq = [test_uq['precip'], precip1, precip2, precip3, precip4]
+error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
+
+plt.plot(test_uq['precip'][0:7], label='Original Precip')
+plt.plot(precip1[0:7], label='Synthetic Precip RMSE 1')
+plt.plot(precip2[0:7], label='Synthetic Precip RMSE 2')
+plt.plot(precip3[0:7], label='Synthetic Precip RMSE 3')
+plt.plot(precip4[0:7], label='Synthetic Precip RMSE 4')
+plt.legend()
+plt.show()
 
 forecast_df = pd.DataFrame(columns=['year', 'month', 'day', 'Observed', 'Forecast', 'error'])
 for index, puq in enumerate(precip_uq):
     test_uq['precip'] = puq
     test_uq.loc[:, ['precip_lag1', 'precip_lag2', 'precip_lag3']] = np.nan
     for lag in range(1, 4): #add lagged features for 1 to 3 days
-        test_uq['precip_lag1'] = test_uq['precip'].shift(lag)
-        test_uq['precip_lag2'] = test_uq['precip'].shift(lag)
-        test_uq['precip_lag3'] = test_uq['precip'].shift(lag)
+        for col in [ 'precip']:
+            test_uq[f'{col}_lag{lag}'] = test_uq[col].shift(lag)
     test_uq = test_uq[test_uq['year'] >= 2009]
     for test_year in range(2009, 2016):
         test_df = test_uq[test_uq['year'] == test_year]
