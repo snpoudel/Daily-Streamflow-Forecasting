@@ -6,12 +6,18 @@ sns.set_palette('colorblind')
 station_id = pd.read_csv('station_id.csv', dtype=str)
 
 ############################################################################################################################################################################################################################################
-#function to calculate NSE
+# #function to calculate NSE
+# def nse(observed, simulated):
+#     denominator = np.sum((observed - (np.mean(observed)))**2)
+#     numerator = np.sum((observed - simulated)**2)
+#     nse = 1 - (numerator/denominator)
+#     return nse
+
+#function to calculate rmse
 def nse(observed, simulated):
-    denominator = np.sum((observed - (np.mean(observed)))**2)
-    numerator = np.sum((observed - simulated)**2)
-    nse = 1 - (numerator/denominator)
-    return nse
+    rmse = np.sqrt(np.mean((observed - simulated)**2))
+    return rmse
+
 forecast_days = [1, 3, 5, 7, 15, 28]
 error = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
 
@@ -90,33 +96,33 @@ fig, axes = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
 # Plot for nse_day1
 sns.boxplot(ax=axes[0], x='error', y='nse_day1', data=df_all, hue='model', showfliers=False, width=0.6)
 axes[0].set_title('a) 1-day High flow (>75th percentile) forecast accuracy at different error levels')
-axes[0].set_ylabel('NSE')
+axes[0].set_ylabel('RMSE')
 axes[0].get_legend().remove()
 axes[0].grid(axis='y', linestyle='--', alpha=0.6)
-axes[0].set_ylim(-1, 1)
+# axes[0].set_ylim(-1, 1)
 # Plot for nse_day3
 sns.boxplot(ax=axes[1], x='error', y='nse_day5', data=df_all, hue='model', showfliers=False, width=0.6)
 axes[1].set_title('b) 5-day High flow (>75th percentile) forecast accuracy at different error levels')
-axes[1].set_ylabel('NSE')
+axes[1].set_ylabel('RMSE')
 axes[1].get_legend().remove()
 axes[1].grid(axis='y', linestyle='--', alpha=0.6)
-axes[1].set_ylim(-1, 1)
+# axes[1].set_ylim(-1, 1)
 # Plot for nse_day5
 sns.boxplot(ax=axes[2], x='error', y='nse_day15', data=df_all, hue='model', showfliers=False, width=0.6)
 axes[2].set_title('c) 15-day High flow (>75th percentile) forecast accuracy at different error levels')
-axes[2].set_ylabel('NSE')
+axes[2].set_ylabel('RMSE')
 axes[2].get_legend().remove()
 axes[2].set_xlabel('Error in forecasted precipitation (mm/day)')
 axes[2].grid(axis='y', linestyle='--', alpha=0.6)
-axes[2].set_ylim(-1, 1)
+# axes[2].set_ylim(-1, 1)
 # Plot for nse_day7
 sns.boxplot(ax=axes[3], x='error', y='nse_day28', data=df_all, hue='model', showfliers=False, width=0.6)
 axes[3].set_title('d) 28-day High flow (>75th percentile) forecast accuracy at different error levels')
-axes[3].set_ylabel('NSE')
+axes[3].set_ylabel('RMSE')
 axes[3].legend(title='Model', loc='lower center',  ncol=4, bbox_to_anchor=(0.5, -0.85))
 axes[3].set_xlabel('Error in forecasted precipitation (mm/day)')
 axes[3].grid(axis='y', linestyle='--', alpha=0.6)
-axes[3].set_ylim(-1, 1)
+# axes[3].set_ylim(-1, 1)
 
 plt.tight_layout()
 plt.savefig('figures/flood_forecast_uncertainty.png', dpi=300)
