@@ -176,31 +176,33 @@ param_value = param_value.values[0]
 #use data after 2009 for forecasting
 test_uq = df[df["year"] >= 2009]
 
-precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip'].values) #synthetic precip with rmse 1, 2, 3, 4 mm/day
-precip_uq = [test_uq['precip'].values, precip1.values, precip2.values, precip3.values, precip4.values]
-error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
+#run for 10 iterations of synthetic precip with uncertainty
+forecast_df = pd.DataFrame(columns=['Date', 'Observed', 'Forecast', 'error', 'iter'])
+for iter in range(10):
+    precip1, precip2, precip3, precip4 = synthetic_precip(test_uq['precip'].values) #synthetic precip with rmse 1, 2, 3, 4 mm/day
+    precip_uq = [test_uq['precip'].values, precip1.values, precip2.values, precip3.values, precip4.values]
+    error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
 
-forecast_df = pd.DataFrame(columns=['Date', 'Observed', 'Forecast', 'error'])
-for index, puq in enumerate(precip_uq):
-    df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
-    df['date'] = pd.to_datetime(df['date'])
-    #replace original precip after 2009 with synthetic precip with uncertainty
-    df.loc[(df['year'] >= 2009), 'precip'] = puq
-    for test_year in range(2009, 2016):
-        for month in range(1, 13):
-            #get model states by running model for the last 365 days before the forecast period starts
-            forecast_start_date = pd.Timestamp(f"{test_year}-{month}-01")
-            forecast_end_date = forecast_start_date + pd.DateOffset(days=28)
-            model_train_start_date = forecast_start_date - pd.DateOffset(years=1)
-            df_states = df[(df['date'] >= model_train_start_date) & (df['date'] < forecast_end_date)]
-            df_states = df_states.reset_index(drop=True)
-            #run model
-            q_sim,_ ,_ = hbv(param_value, df_states["precip"], df_states["tavg"], df_states["date"], df_states["latitude"], routing=1)
-            #extract the last 28 days of the streamflow simulation
-            forecast_streamflow = q_sim[-28:]
-            forecast_date = df_states['date'][-28:]
-            observed_streamflow = df_states['qobs'][-28:]
-            forecast_df = pd.concat([forecast_df, pd.DataFrame({'Date': forecast_date, 'Observed': observed_streamflow, 'Forecast': forecast_streamflow, 'error': error_level[index]})])
+    for index, puq in enumerate(precip_uq):
+        df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
+        df['date'] = pd.to_datetime(df['date'])
+        #replace original precip after 2009 with synthetic precip with uncertainty
+        df.loc[(df['year'] >= 2009), 'precip'] = puq
+        for test_year in range(2009, 2016):
+            for month in range(1, 13):
+                #get model states by running model for the last 365 days before the forecast period starts
+                forecast_start_date = pd.Timestamp(f"{test_year}-{month}-01")
+                forecast_end_date = forecast_start_date + pd.DateOffset(days=28)
+                model_train_start_date = forecast_start_date - pd.DateOffset(years=1)
+                df_states = df[(df['date'] >= model_train_start_date) & (df['date'] < forecast_end_date)]
+                df_states = df_states.reset_index(drop=True)
+                #run model
+                q_sim,_ ,_ = hbv(param_value, df_states["precip"], df_states["tavg"], df_states["date"], df_states["latitude"], routing=1)
+                #extract the last 28 days of the streamflow simulation
+                forecast_streamflow = q_sim[-28:]
+                forecast_date = df_states['date'][-28:]
+                observed_streamflow = df_states['qobs'][-28:]
+                forecast_df = pd.concat([forecast_df, pd.DataFrame({'Date': forecast_date, 'Observed': observed_streamflow, 'Forecast': forecast_streamflow, 'error': error_level[index], 'iter': iter})])
 #save the forecasted values
 forecast_df = forecast_df.reset_index(drop=True)
 

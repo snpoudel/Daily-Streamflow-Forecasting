@@ -150,25 +150,32 @@ print('Completed!!!')
 df = pd.read_csv(f"data/hbv_input_{station_id}.csv")
 df = df[df['year'] >= 2009].reset_index(drop=True)
 
-precip1, precip2, precip3, precip4 = synthetic_precip(df['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
-precip_uq = [df['precip'], precip1, precip2, precip3, precip4]
-error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
-
+#run for 10 iterations of synthetic precip with uncertainty
 forecast_df_uq = pd.DataFrame()
-for index, puq in enumerate(precip_uq):
-    forecast_df = pd.read_csv(f"output/hbv/puq/hbv{station_id}.csv")
-    #only keep dataframe correspond to error level
-    forecast_df = forecast_df[forecast_df['error'] == error_level[index]]
-    forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
-    ##--SARIMA--##
-    forecast_sarima = final_forecast_df[['Date', 'Forecast_arima']]
-    #merge forecast_df and forecast_sarima on Date
-    forecast_df_temp = pd.merge(forecast_df, forecast_sarima, on='Date', suffixes=('_hbv', '_arima'))
-    forecast_df_temp['Final_Forecast'] = forecast_df_temp['Forecast'] + forecast_df_temp['Forecast_arima']
-    #append to forecast_df_uq
-    forecast_df_uq = pd.concat([forecast_df_uq, forecast_df_temp], ignore_index=True)
+for iter in range(10):
+    precip1, precip2, precip3, precip4 = synthetic_precip(df['precip']) #synthetic precip with rmse 1, 2, 3, 4 mm/day
+    precip_uq = [df['precip'], precip1, precip2, precip3, precip4]
+    error_level = ['rmse0', 'rmse1', 'rmse2', 'rmse3', 'rmse4']
+
+    for index, puq in enumerate(precip_uq):
+        forecast_df = pd.read_csv(f"output/hbv/puq/hbv{station_id}.csv")
+        #only keep dataframe correspond to error level
+        forecast_df = forecast_df[forecast_df['error'] == error_level[index]]
+        forecast_df['Date'] = pd.to_datetime(forecast_df['Date'])
+        ##--SARIMA--##
+        forecast_sarima = final_forecast_df[['Date', 'Forecast_arima']]
+        forecast_sarima['Date'] = pd.to_datetime(forecast_sarima['Date'])
+        #merge forecast_df and forecast_sarima on Date
+        forecast_df_temp = pd.merge(forecast_df, forecast_sarima, on='Date')
+        forecast_df_temp['Final_Forecast'] = forecast_df_temp['Forecast'] + forecast_df_temp['Forecast_arima']
+        forecast_df_temp['iter'] = iter
+        #append to forecast_df_uq
+        forecast_df_uq = pd.concat([forecast_df_uq, forecast_df_temp], ignore_index=True)
+
 forecast_df_uq = forecast_df_uq.reset_index(drop=True)
 forecast_df_uq['Date'] = pd.to_datetime(forecast_df_uq['Date'])
 
 #save forecasted values
 forecast_df_uq.to_csv(f"output/hbv_sarima/puq/hbv_sarima{station_id}.csv", index = False)
+
+forecast_df_uq[forecast_df_uq['error'] == 'rmse0']
